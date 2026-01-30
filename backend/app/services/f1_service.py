@@ -1,7 +1,7 @@
 import requests
 
-def get_2023_season_data():
-    url = "https://api.openf1.org/v1/sessions?year=2023"
+def get_circuit_data(circuit_key):
+    url = f"https://api.openf1.org/v1/sessions?year=2023&circuit_key={circuit_key}"
     response = requests.get(url)
 
     if (response.status_code != 200):
