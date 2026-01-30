@@ -107,16 +107,24 @@ async function loadFilteredSessions() {
     });
     
     try {
-        const response = await fetch(`${API_BASE_URL}/season/ft_session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                circuit_key: circuit.key,
-                session_type: currentFilter
-            })
-        });
+        let response;
+        
+        // If filter is "All", use GET endpoint with circuit_key
+        if (currentFilter === 'All') {
+            response = await fetch(`${API_BASE_URL}/season/summary/${circuit.key}`);
+        } else {
+            // Otherwise use POST endpoint with filter
+            response = await fetch(`${API_BASE_URL}/season/ft_session`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    circuit_key: circuit.key,
+                    session_type: currentFilter
+                })
+            });
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
