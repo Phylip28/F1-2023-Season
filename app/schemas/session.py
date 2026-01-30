@@ -9,3 +9,7 @@ class SessionSchema(BaseModel):
     circuit_short_name: str
     country_name: str
     location: str
+
+class SessionFilterSchema(BaseModel):
+    circuit_key: int
+    session_type: str
