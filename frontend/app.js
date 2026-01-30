@@ -92,8 +92,13 @@ async function loadFilteredSessions() {
     const sessionList = document.getElementById('sessionList');
     const circuit = circuits[currentCircuitIndex];
     
-    // Show loading state
-    sessionList.innerHTML = '<div class="loading">Loading sessions...</div>';
+    // Show loading state with spinner
+    sessionList.innerHTML = `
+        <div class="loading">
+            <img src="./assets/icons/hard-tyre.png" class="loading-spinner" alt="Loading">
+            <span>Loading sessions...</span>
+        </div>
+    `;
     
     console.log('Loading sessions for:', {
         circuit: circuit.name,
@@ -131,6 +136,7 @@ async function loadFilteredSessions() {
         `;
     }
 }
+
 // Display sessions in the left sidebar
 function displaySessions(sessions) {
     const sessionList = document.getElementById('sessionList');
@@ -139,7 +145,7 @@ function displaySessions(sessions) {
     if (!sessions || sessions.length === 0) {
         sessionList.innerHTML = `
             <div class="loading">
-                No sessions found for this filter
+                <span>No sessions found for this filter</span>
             </div>
         `;
         return;
@@ -156,16 +162,20 @@ function createSessionItem(session) {
     const item = document.createElement('div');
     item.className = 'session-item';
 
-    // Title
+    // Header with title and session type
+    const header = document.createElement('div');
+    header.className = 'session-header';
+    
     const title = document.createElement('h3');
     title.textContent = session.session_name;
-    item.appendChild(title);
-
-    // Session Type Badge
+    
     const sessionType = document.createElement('span');
     sessionType.className = 'session-type';
     sessionType.textContent = session.session_type;
-    item.appendChild(sessionType);
+    
+    header.appendChild(title);
+    header.appendChild(sessionType);
+    item.appendChild(header);
 
     // Circuit Info
     const circuitRow = document.createElement('div');
