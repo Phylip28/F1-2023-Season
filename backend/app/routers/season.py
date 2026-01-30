@@ -5,10 +5,10 @@ from app.services import f1_service
 router = APIRouter(prefix="/season")
 
 
-@router.get("/summary", response_model=list[SessionSchema])
-def get_season_summary():
+@router.get("/summary/{circuit_key}", response_model=list[SessionSchema])
+def get_circuit_data(circuit_key: int):
 
-    raw_data = f1_service.get_2023_season_data()
+    raw_data = f1_service.get_circuit_data(circuit_key)
 
     return raw_data
 
