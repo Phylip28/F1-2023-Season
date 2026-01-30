@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 2023 Season</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Sidebar - Session Data -->
+        <aside class="left-sidebar">
+            <h2>Session Information</h2>
+            <div id="sessionList" class="session-list">
+                <div class="loading">Select a circuit and filter...</div>
+            </div>
+        </aside>
+
+        <!-- Center - Circuit Display -->
+        <main class="circuit-viewer">
+            <!-- Navigation Arrow Left -->
+            <button class="nav-arrow left-arrow" id="prevCircuit">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+
+            <!-- Circuit Display -->
+            <div class="circuit-container">
+                <h1 id="circuitName">Loading...</h1>
+                <div class="circuit-display">
+                    <div id="circuitImage" class="circuit-image">
+                        <div class="loading">Loading circuit...</div>
+                    </div>
+                </div>
+                <div class="circuit-info">
+                    <p id="circuitCounter">1 / 23</p>
+                </div>
+            </div>
+
+            <!-- Navigation Arrow Right -->
+            <button class="nav-arrow right-arrow" id="nextCircuit">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </main>
+
+        <!-- Right Sidebar - Filter Dropdown -->
+        <aside class="right-sidebar">
+            <div class="filter-dropdown">
+                <button class="filter-button" id="filterButton">
+                    <span id="filterText">Filter</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="filter-options" id="filterOptions">
+                    <button class="filter-option" data-filter="general">General</button>
+                    <button class="filter-option active" data-filter="Race">Race</button>
+                    <button class="filter-option" data-filter="Qualifying">Qualifying</button>
+                    <button class="filter-option" data-filter="Practice">Practice</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

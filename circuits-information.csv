@@ -1,0 +1,24 @@
+circuit_short_name,circuit_key,asset_path
+Sakhir,63,frontend/assets/circuits/bahrain-1.svg
+Jeddah,149,frontend/assets/circuits/jeddah.svg
+Melbourne,10,frontend/assets/circuits/melbourne.svg
+Baku,144,frontend/assets/circuits/baku.svg
+Miami,151,frontend/assets/circuits/miami.svg
+Imola,6,frontend/assets/circuits/imola.svg
+Monte Carlo,22,frontend/assets/circuits/monaco.svg
+Catalunya,15,frontend/assets/circuits/catalunya.svg
+Montreal,23,frontend/assets/circuits/montreal.svg
+Spielberg,19,frontend/assets/circuits/spielberg.svg
+Silverstone,2,frontend/assets/circuits/silverstone.svg
+Hungaroring,4,frontend/assets/circuits/hungaroring.svg
+Spa-Francorchamps,7,frontend/assets/circuits/spa-francorchamps.svg
+Zandvoort,55,frontend/assets/circuits/zandvoort.svg
+Monza,39,frontend/assets/circuits/monza.svg
+Singapore,61,frontend/assets/circuits/marina-bay.svg
+Suzuka,46,frontend/assets/circuits/suzuka.svg
+Lusail,150,frontend/assets/circuits/lusail.svg
+Austin,9,frontend/assets/circuits/austin.svg
+Mexico City,65,frontend/assets/circuits/mexico-city.svg
+Interlagos,14,frontend/assets/circuits/interlagos.svg
+Las Vegas,152,frontend/assets/circuits/las-vegas.svg
+Yas Marina Circuit,70,frontend/assets/circuits/yas-marina.svg
