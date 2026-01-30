@@ -1,8 +1,8 @@
 // Configuration
 const API_BASE_URL = 'http://localhost:8000';
-const CIRCUITS_PATH = '../assets/circuits';
+const CIRCUITS_PATH = './assets/circuits';
 
-// Circuit data from info.csv
+// Circuit data from circuits-information.csv
 const circuits = [
     { name: 'Sakhir', key: 63, asset: 'bahrain-1.svg' },
     { name: 'Jeddah', key: 149, asset: 'jeddah.svg' },
