@@ -1,0 +1,53 @@
+name: Docker Images CI Pipeline
+
+on:
+  push:
+    branches: [ trunk ]
+    paths:
+    # Include
+      - "backend/**"
+      - "frontend/**"
+
+    # Exclude
+      - "!**.md"
+      - "!LICENSE"
+      - "!circuits-information.csv"
+      - "!README.md"
+      - "!.gitignore"
+      - "!docs/**"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        services: [ backend, frontend]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lowercase Repository name
+        run: echo "RPN=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./{{ matrix.service }}
+          push: true
+          tags: ghcr.io/{{ env.RPN }}/{{ matrix.service }}:latest
+
+          cache-from: type=gha
+          cache-to: type=gha, mode=min
