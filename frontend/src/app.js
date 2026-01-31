@@ -1,6 +1,6 @@
 // Configuration
 const API_BASE_URL = 'http://localhost:8000';
-const CIRCUITS_PATH = './assets/circuits';
+const CIRCUITS_PATH = '/assets/circuits';
 
 // Circuit data from circuits-information.csv
 const circuits = [
@@ -95,7 +95,7 @@ async function loadFilteredSessions() {
     // Show loading state with spinner
     sessionList.innerHTML = `
         <div class="loading">
-            <img src="./assets/icons/hard-tyre.png" class="loading-spinner" alt="Loading">
+            <img src="/assets/icons/hard-tyre.png" class="loading-spinner" alt="Loading">
             <span>Loading sessions...</span>
         </div>
     `;
