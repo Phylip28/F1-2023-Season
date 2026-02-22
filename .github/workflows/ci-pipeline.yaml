@@ -11,11 +11,8 @@ on:
 
       # Exclude
       - "!**.md"
-      - "!LICENSE"
-      - "!circuits-information.csv"
-      - "!README.md"
-      - "!.gitignore"
-      - "!docs/**"
+
+  workflow_dispatch:
 
 jobs:
   call-docker-build:
