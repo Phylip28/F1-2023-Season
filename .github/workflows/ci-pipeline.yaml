@@ -1,9 +1,5 @@
 name: Docker Images CI Pipeline
 
-permissions:
-  contents: read
-  packages: write
-
 on:
   push:
     branches: [trunk]
@@ -23,6 +19,10 @@ on:
 
 jobs:
   call-docker-build:
+    permissions:
+      contents: read
+      packages: write
+
     uses: Phylip28/gha-workflows/.github/workflows/docker-ghcr.yaml@trunk
     with:
       services: '["backend", "frontend"]'
