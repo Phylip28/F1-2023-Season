@@ -1,5 +1,9 @@
 from fastapi import APIRouter
-from app.schemas.session import SessionSchema, SessionFilterSchema
+from app.schemas.session import (
+    DriverClassificationSchema,
+    SessionFilterSchema,
+    SessionSchema,
+)
 from app.services import f1_service
 
 router = APIRouter(prefix="/season")
@@ -21,3 +25,13 @@ def get_filtered_session(filter_params: SessionFilterSchema):
     )
 
     return filtered_data
+
+
+@router.post("/classification", response_model=list[DriverClassificationSchema])
+def get_driver_classification(filter_params: SessionFilterSchema):
+
+    classification_data = f1_service.get_driver_classification(
+        filter_params.circuit_key, filter_params.session_type
+    )
+
+    return classification_data
