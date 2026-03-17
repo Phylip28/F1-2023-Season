@@ -20,6 +20,8 @@ The architecture used is microservices. We know that this one requires high infr
 
 `POST /season/ft_session` - Filters sessions by type (Race, Qualifying, Practice)
 
+`POST /season/classification` - Retrieves driver classification for a circuit and session type (Race, Qualifying, Practice)
+
 ## Project Structure
 
 ```

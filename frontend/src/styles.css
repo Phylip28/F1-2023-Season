@@ -14,39 +14,43 @@ body {
 
 .container {
     display: grid;
-    grid-template-columns: 380px 1fr 200px;
+    grid-template-columns: 220px 1fr 380px;
     gap: 0;
     height: 100vh;
     padding: 0;
 }
 
-/* Left Sidebar */
+/* Left Sidebar - Session Type Filter */
 .left-sidebar {
     background: #0f0f0f;
-    padding: 25px 20px;
+    padding: 30px 15px;
     border-right: 3px solid #DC0000;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     height: 100vh;
 }
 
 .left-sidebar h2 {
-    margin-bottom: 30px;
+    width: 100%;
+    margin-bottom: 18px;
     color: #fff;
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     border-bottom: 2px solid #DC0000;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 2px;
     font-weight: 700;
+    text-align: center;
 }
 
-.session-list {
+.classification-list {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-.session-item {
+.classification-item {
     background: #1a1a1a;
     border-radius: 8px;
     padding: 18px;
@@ -56,14 +60,15 @@ body {
     box-shadow: 0 2px 8px rgba(220, 0, 0, 0.1);
 }
 
-.session-header {
+.classification-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    gap: 8px;
 }
 
-.session-item:hover {
+.classification-item:hover {
     background: #222;
     box-shadow: 0 4px 15px rgba(220, 0, 0, 0.3);
 }
@@ -79,7 +84,7 @@ body {
     }
 }
 
-.session-item h3 {
+.classification-item h3 {
     font-size: 1rem;
     color: #fff;
     margin-bottom: 12px;
@@ -88,21 +93,36 @@ body {
     flex: 1;
 }
 
-.session-item .info-row {
+.classification-item .info-row {
     display: flex;
     margin-bottom: 8px;
     font-size: 0.85rem;
 }
 
-.session-item .info-label {
+.classification-item .info-label {
     color: #888;
     min-width: 100px;
     font-weight: 600;
 }
 
-.session-item .info-value {
+.classification-item .info-value {
     color: #fff;
     font-weight: 400;
+}
+
+.driver-position {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    background: #DC0000;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
 }
 
 .session-type {
@@ -268,15 +288,24 @@ body {
     height: 45px;
 }
 
-/* Right Sidebar - Filter Dropdown */
+/* Right Sidebar - Driver Classification */
 .right-sidebar {
     background: #0f0f0f;
-    padding: 30px 15px;
+    padding: 25px 20px;
     border-left: 3px solid #DC0000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    overflow-y: auto;
     height: 100vh;
+}
+
+.right-sidebar h2 {
+    margin-bottom: 30px;
+    color: #fff;
+    font-size: 1.4rem;
+    border-bottom: 2px solid #DC0000;
+    padding-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
 }
 
 .filter-dropdown {
