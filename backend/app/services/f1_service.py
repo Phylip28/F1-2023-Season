@@ -1,6 +1,49 @@
 import requests
 
 
+def _normalize_session_result_value(raw_value, session_type):
+    if raw_value is None:
+        return None
+
+    if isinstance(raw_value, list):
+        # Qualifying usually exposes segment values (Q1/Q2/Q3).
+        valid_values = [value for value in raw_value if value is not None]
+        if not valid_values:
+            return None
+
+        if session_type == "Qualifying":
+            return valid_values[-1]
+
+        return valid_values[0]
+
+    return raw_value
+
+
+def _normalize_gap_to_leader(raw_gap, session_type):
+    normalized_gap = _normalize_session_result_value(raw_gap, session_type)
+    if normalized_gap is None:
+        return None
+
+    if isinstance(normalized_gap, str):
+        try:
+            return float(normalized_gap)
+        except ValueError:
+            return normalized_gap
+
+    return normalized_gap
+
+
+def _normalize_duration(raw_duration, session_type):
+    normalized_duration = _normalize_session_result_value(raw_duration, session_type)
+    if normalized_duration is None:
+        return None
+
+    try:
+        return float(normalized_duration)
+    except (TypeError, ValueError):
+        return None
+
+
 def get_circuit_data(circuit_key):
     url = f"https://api.openf1.org/v1/sessions?year=2023&circuit_key={circuit_key}"
     response = requests.get(url)
@@ -68,6 +111,8 @@ def get_driver_classification(circuit_key, session_type):
     sorted_rows = sorted(
         classification_rows, key=lambda row: row.get("position") or 999
     )
+    selected_session_type = selected_session.get("session_type")
+
     return [
         {
             "position": row.get("position"),
@@ -79,13 +124,16 @@ def get_driver_classification(circuit_key, session_type):
                 "team_name"
             ),
             "number_of_laps": row.get("number_of_laps"),
-            "gap_to_leader": row.get("gap_to_leader"),
+            "duration": _normalize_duration(row.get("duration"), selected_session_type),
+            "gap_to_leader": _normalize_gap_to_leader(
+                row.get("gap_to_leader"), selected_session_type
+            ),
             "dnf": row.get("dnf"),
             "dns": row.get("dns"),
             "dsq": row.get("dsq"),
             "session_key": session_key,
             "session_name": selected_session.get("session_name"),
-            "session_type": selected_session.get("session_type"),
+            "session_type": selected_session_type,
             "circuit_short_name": selected_session.get("circuit_short_name"),
         }
         for row in sorted_rows

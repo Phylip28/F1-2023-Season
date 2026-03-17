@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupFilterDropdown();
     displayCurrentCircuit();
-    loadFilteredSessions();
+    loadDriverClassification();
 });
 
 // Display current circuit
@@ -77,67 +77,59 @@ function setupNavigation() {
     prevButton.addEventListener('click', () => {
         currentCircuitIndex = (currentCircuitIndex - 1 + circuits.length) % circuits.length;
         displayCurrentCircuit();
-        loadFilteredSessions();
+        loadDriverClassification();
     });
     
     nextButton.addEventListener('click', () => {
         currentCircuitIndex = (currentCircuitIndex + 1) % circuits.length;
         displayCurrentCircuit();
-        loadFilteredSessions();
+        loadDriverClassification();
     });
 }
 
-// Load filtered sessions from API
-async function loadFilteredSessions() {
-    const sessionList = document.getElementById('sessionList');
+// Load driver classification from API
+async function loadDriverClassification() {
+    const classificationList = document.getElementById('classificationList');
     const circuit = circuits[currentCircuitIndex];
     
     // Show loading state with spinner
-    sessionList.innerHTML = `
+    classificationList.innerHTML = `
         <div class="loading">
             <img src="/assets/icons/hard-tyre.png" class="loading-spinner" alt="Loading">
-            <span>Loading sessions...</span>
+            <span>Loading classification...</span>
         </div>
     `;
     
-    console.log('Loading sessions for:', {
+    console.log('Loading classification for:', {
         circuit: circuit.name,
         circuit_key: circuit.key,
         session_type: currentFilter
     });
     
     try {
-        let response;
-        
-        // If filter is "All", use GET endpoint with circuit_key
-        if (currentFilter === 'All') {
-            response = await fetch(`${API_BASE_URL}/season/summary/${circuit.key}`);
-        } else {
-            // Otherwise use POST endpoint with filter
-            response = await fetch(`${API_BASE_URL}/season/ft_session`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    circuit_key: circuit.key,
-                    session_type: currentFilter
-                })
-            });
-        }
+        const response = await fetch(`${API_BASE_URL}/season/classification`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                circuit_key: circuit.key,
+                session_type: currentFilter
+            })
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Received sessions:', data);
-        displaySessions(data);
+        console.log('Received classification:', data);
+        displayClassification(data);
     } catch (error) {
-        console.error('Error loading filtered sessions:', error);
-        sessionList.innerHTML = `
+        console.error('Error loading classification:', error);
+        classificationList.innerHTML = `
             <div class="error">
-                <p>Failed to load session data</p>
+                <p>Failed to load classification data</p>
                 <p style="font-size: 0.8rem;">Error: ${error.message}</p>
                 <p style="font-size: 0.8rem;">Make sure the backend is running on ${API_BASE_URL}</p>
             </div>
@@ -145,94 +137,129 @@ async function loadFilteredSessions() {
     }
 }
 
-// Display sessions in the left sidebar
-function displaySessions(sessions) {
-    const sessionList = document.getElementById('sessionList');
-    sessionList.innerHTML = '';
+// Display classification rows in the left sidebar
+function displayClassification(classificationRows) {
+    const classificationList = document.getElementById('classificationList');
+    classificationList.innerHTML = '';
 
-    if (!sessions || sessions.length === 0) {
-        sessionList.innerHTML = `
+    if (!classificationRows || classificationRows.length === 0) {
+        classificationList.innerHTML = `
             <div class="loading">
-                <span>No sessions found for this filter</span>
+                <span>No classification data found for this selection</span>
             </div>
         `;
         return;
     }
 
-    sessions.forEach(session => {
-        const sessionItem = createSessionItem(session);
-        sessionList.appendChild(sessionItem);
+    classificationRows.forEach(row => {
+        const classificationItem = createClassificationItem(row);
+        classificationList.appendChild(classificationItem);
     });
 }
 
-// Create a session item element
-function createSessionItem(session) {
+// Create a classification item element
+function createClassificationItem(row) {
     const item = document.createElement('div');
-    item.className = 'session-item';
+    item.className = 'classification-item';
 
-    // Header with title and session type
+    // Header with position and driver info
     const header = document.createElement('div');
-    header.className = 'session-header';
+    header.className = 'classification-header';
+
+    const position = document.createElement('span');
+    position.className = 'driver-position';
+    position.textContent = row.position ?? '-';
     
     const title = document.createElement('h3');
-    title.textContent = session.session_name;
+    title.textContent = row.driver_name || `Driver #${row.driver_number}`;
     
     const sessionType = document.createElement('span');
     sessionType.className = 'session-type';
-    sessionType.textContent = session.session_type;
+    sessionType.textContent = row.session_type;
     
+    header.appendChild(position);
     header.appendChild(title);
     header.appendChild(sessionType);
     item.appendChild(header);
 
-    // Circuit Info
-    const circuitRow = document.createElement('div');
-    circuitRow.className = 'info-row';
-    circuitRow.innerHTML = `
-        <span class="info-label">Circuit:</span>
-        <span class="info-value">${session.circuit_short_name}</span>
+    const carNumberRow = document.createElement('div');
+    carNumberRow.className = 'info-row';
+    carNumberRow.innerHTML = `
+        <span class="info-label">Car:</span>
+        <span class="info-value">#${row.driver_number}</span>
     `;
-    item.appendChild(circuitRow);
+    item.appendChild(carNumberRow);
 
-    // Location Info
-    const locationRow = document.createElement('div');
-    locationRow.className = 'info-row';
-    locationRow.innerHTML = `
-        <span class="info-label">Location:</span>
-        <span class="info-value">${session.location}</span>
+    const teamRow = document.createElement('div');
+    teamRow.className = 'info-row';
+    teamRow.innerHTML = `
+        <span class="info-label">Team:</span>
+        <span class="info-value">${row.team_name || 'Unknown'}</span>
     `;
-    item.appendChild(locationRow);
+    item.appendChild(teamRow);
 
-    // Country Info
-    const countryRow = document.createElement('div');
-    countryRow.className = 'info-row';
-    countryRow.innerHTML = `
-        <span class="info-label">Country:</span>
-        <span class="info-value">${session.country_name}</span>
+    const lapsRow = document.createElement('div');
+    lapsRow.className = 'info-row';
+    lapsRow.innerHTML = `
+        <span class="info-label">Laps:</span>
+        <span class="info-value">${row.number_of_laps ?? '-'}</span>
     `;
-    item.appendChild(countryRow);
+    item.appendChild(lapsRow);
 
-    // Date Start
-    const dateStart = new Date(session.date_start);
-    const dateStartRow = document.createElement('div');
-    dateStartRow.className = 'info-row';
-    dateStartRow.innerHTML = `
-        <span class="info-label">Start:</span>
-        <span class="info-value">${dateStart.toLocaleDateString()} ${dateStart.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+    const gapRow = document.createElement('div');
+    gapRow.className = 'info-row';
+    gapRow.innerHTML = `
+        <span class="info-label">Gap:</span>
+        <span class="info-value">${formatGap(row)}</span>
     `;
-    item.appendChild(dateStartRow);
+    item.appendChild(gapRow);
 
-    // Date End
-    const dateEnd = new Date(session.date_end);
-    const dateEndRow = document.createElement('div');
-    dateEndRow.className = 'info-row';
-    dateEndRow.innerHTML = `
-        <span class="info-label">End:</span>
-        <span class="info-value">${dateEnd.toLocaleDateString()} ${dateEnd.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+    const statusRow = document.createElement('div');
+    statusRow.className = 'info-row';
+    statusRow.innerHTML = `
+        <span class="info-label">Status:</span>
+        <span class="info-value">${formatStatus(row)}</span>
     `;
-    item.appendChild(dateEndRow);
+    item.appendChild(statusRow);
 
     return item;
+}
+
+function formatGap(row) {
+    if (row.position === 1 || row.gap_to_leader === 0) {
+        return 'Leader';
+    }
+
+    if (row.gap_to_leader === null || row.gap_to_leader === undefined) {
+        return '-';
+    }
+
+    if (typeof row.gap_to_leader === 'string') {
+        const parsed = Number(row.gap_to_leader);
+        if (Number.isNaN(parsed)) {
+            return row.gap_to_leader;
+        }
+
+        return `+${parsed.toFixed(3)}s`;
+    }
+
+    return `+${Number(row.gap_to_leader).toFixed(3)}s`;
+}
+
+function formatStatus(row) {
+    if (row.dsq) {
+        return 'Disqualified';
+    }
+
+    if (row.dns) {
+        return 'Did not start';
+    }
+
+    if (row.dnf) {
+        return 'Did not finish';
+    }
+
+    return 'Finished';
 }
 
 // Setup filter dropdown
@@ -280,8 +307,8 @@ function setupFilterDropdown() {
             filterOptions.classList.remove('show');
             filterButton.classList.remove('open');
             
-            // Load filtered sessions
-            loadFilteredSessions();
+            // Load filtered classification
+            loadDriverClassification();
         });
     });
 }

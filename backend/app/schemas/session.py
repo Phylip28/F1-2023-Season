@@ -23,7 +23,8 @@ class DriverClassificationSchema(BaseModel):
     driver_name: str | None = None
     team_name: str | None = None
     number_of_laps: int | None = None
-    gap_to_leader: float | None = None
+    duration: float | None = None
+    gap_to_leader: float | str | None = None
     dnf: bool | None = None
     dns: bool | None = None
     dsq: bool | None = None
