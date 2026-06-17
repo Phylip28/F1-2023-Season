@@ -3,68 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 2023 Season</title>
+    <title>F1 2023 Live Telemetry Dashboard</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Left Sidebar - Session Type Filter -->
-        <aside class="left-sidebar">
-            <h2>Session Type</h2>
-            <div class="filter-dropdown">
-                <button class="filter-button" id="filterButton">
-                    <span id="filterText">Filter</span>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </button>
-                <div class="filter-options" id="filterOptions">
-                    <button class="filter-option active" data-filter="Race">Race</button>
-                    <button class="filter-option" data-filter="Qualifying">Qualifying</button>
-                    <button class="filter-option" data-filter="Practice">Practice</button>
-                </div>
+    <div class="app-container">
+        <!-- Dashboard Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="f1-badge">F1</span>
+                <h1>SEASON 2023</h1>
             </div>
-        </aside>
+            <div class="header-status">
+                <span class="status-dot green"></span>
+                <span class="status-text">LIVE TELEMETRY FEED</span>
+            </div>
+        </header>
 
-        <!-- Center - Circuit Display -->
-        <main class="circuit-viewer">
-            <!-- Navigation Arrow Left -->
-            <button class="nav-arrow left-arrow" id="prevCircuit">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-            </button>
+        <div class="dashboard-grid">
+            <!-- Left Panel: GP Schedule -->
+            <aside class="panel circuits-panel">
+                <div class="panel-header">
+                    <h2>GRAND PRIX SCHEDULE</h2>
+                </div>
+                <div class="circuits-list" id="circuitsList">
+                    <!-- Dynamic circuits list -->
+                </div>
+            </aside>
 
-            <!-- Circuit Display -->
-            <div class="circuit-container">
-                <h1 id="circuitName">Loading...</h1>
-                <div class="circuit-display">
-                    <div id="circuitImage" class="circuit-image">
-                        <div class="loading">Loading circuit...</div>
+            <!-- Center Panel: Active Circuit Map & Telemetry -->
+            <main class="panel telemetry-panel">
+                <div class="active-circuit-header">
+                    <div class="round-badge" id="activeRoundBadge">R01</div>
+                    <div class="circuit-title-group">
+                        <h2 id="circuitName">Sakhir</h2>
+                        <span class="sub-label" id="circuitLocation">Bahrain</span>
                     </div>
                 </div>
-                <div class="circuit-info">
-                    <p id="circuitCounter">1 / 23</p>
+                
+                <div class="circuit-visualizer">
+                    <div class="nav-control-left" id="prevCircuit" title="Previous Circuit">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </div>
+                    
+                    <div class="circuit-map" id="circuitImage">
+                        <!-- SVG map -->
+                    </div>
+
+                    <div class="nav-control-right" id="nextCircuit" title="Next Circuit">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Navigation Arrow Right -->
-            <button class="nav-arrow right-arrow" id="nextCircuit">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-            </button>
-        </main>
+                <div class="panel-sub-header">
+                    <h3>WEATHER & TRACK TELEMETRY</h3>
+                </div>
+                <div class="weather-widget" id="weatherWidget">
+                    <!-- Telemetry values -->
+                </div>
+            </main>
 
-        <!-- Right Sidebar - Driver Classification -->
-        <aside class="right-sidebar">
-            <h2>Driver Classification</h2>
-            <div id="classificationList" class="classification-list">
-                <div class="loading">Select a circuit and session type...</div>
-            </div>
-        </aside>
+            <!-- Right Panel: Leaderboard Classification -->
+            <aside class="panel leaderboard-panel">
+                <div class="panel-header flex-header">
+                    <h2>TIMING BOARD</h2>
+                    <!-- Segmented tabs for session selection -->
+                    <div class="session-tabs" id="sessionTabs">
+                        <button class="session-tab active" data-filter="Race">RACE</button>
+                        <button class="session-tab" data-filter="Qualifying">QUALY</button>
+                        <button class="session-tab" data-filter="Practice">PRACTICE</button>
+                    </div>
+                </div>
+                <div class="leaderboard-list" id="classificationList">
+                    <!-- Dynamic rows -->
+                </div>
+            </aside>
+        </div>
     </div>
 
     <script type="module" src="app.js"></script>
 </body>
 </html>
+
