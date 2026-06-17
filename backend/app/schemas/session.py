@@ -32,3 +32,16 @@ class DriverClassificationSchema(BaseModel):
     session_name: str
     session_type: str
     circuit_short_name: str
+
+
+class WeatherSchema(BaseModel):
+    date: datetime
+    session_key: int
+    meeting_key: int
+    air_temperature: float | None = None
+    track_temperature: float | None = None
+    humidity: float | None = None
+    pressure: float | None = None
+    wind_speed: float | None = None
+    wind_direction: int | None = None
+    rainfall: float | None = None

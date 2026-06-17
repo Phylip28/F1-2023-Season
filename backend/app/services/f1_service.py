@@ -139,3 +139,33 @@ def get_driver_classification(circuit_key, session_type):
         for row in sorted_rows
         if row.get("driver_number") is not None
     ]
+
+
+def get_race_weather(circuit_key):
+    sessions_url = (
+        "https://api.openf1.org/v1/sessions"
+        f"?year=2023&circuit_key={circuit_key}&session_type=Race"
+    )
+    sessions_response = requests.get(sessions_url)
+
+    if sessions_response.status_code != 200:
+        return {"error": "Failed to fetch session data."}
+
+    sessions = sessions_response.json()
+    if not sessions:
+        return []
+
+    selected_session = max(sessions, key=lambda session: session.get("date_start", ""))
+    session_key = selected_session.get("session_key")
+
+    weather_url = f"https://api.openf1.org/v1/weather?session_key={session_key}"
+    weather_response = requests.get(weather_url)
+
+    if weather_response.status_code != 200:
+        return {"error": "Failed to fetch weather data."}
+
+    weather_data = weather_response.json()
+    if not weather_data:
+        return []
+
+    return weather_data

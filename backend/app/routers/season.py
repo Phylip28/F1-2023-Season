@@ -3,6 +3,7 @@ from app.schemas.session import (
     DriverClassificationSchema,
     SessionFilterSchema,
     SessionSchema,
+    WeatherSchema,
 )
 from app.services import f1_service
 
@@ -35,3 +36,11 @@ def get_driver_classification(filter_params: SessionFilterSchema):
     )
 
     return classification_data
+
+
+@router.get("/weather/{circuit_key}", response_model=list[WeatherSchema])
+def get_race_weather(circuit_key: int):
+
+    weather_data = f1_service.get_race_weather(circuit_key)
+
+    return weather_data
