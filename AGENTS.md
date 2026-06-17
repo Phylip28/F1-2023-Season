@@ -1,35 +1,38 @@
-# Agent.md
+# AGENTS.md - F1 2023 Season Map & Constraints
 
-This document provides rules and guidelines for the project.
+## 1. System Architecture & Stack Map
+- **Backend Stack:** Python 3.11 | FastAPI.
+- **Backend Package Manager:** `uv` (Astral).
+- **Backend Dependency File:** `pyproject.toml`.
+- **Frontend Stack:** Node.js | React / TypeScript.
+- **Frontend Package Manager:** `pnpm`.
+- **Infrastructure:** Docker & Docker Compose.
+- **Data Source:** OpenF1 API.
 
-## 1. Backend & Dependency Constraints
-- **Language:** Python 3.11+.
-- **Dependency Management:** Use ONLY `pyproject.toml` (uv). Never install packages via raw `pip` inside the container manually. If a new dependency is required, append it to `pyproject.toml` using uv add before updating code
-- The backend should be designed to be modular and extensible, allowing for easy integration of new features and components.
-- The backend should follow best practices for code organization, readability, and maintainability.
+## 2. Strict Boundary Constraints
+- **No Pip:** Never execute `pip install`. All dependency additions MUST use `uv add <package>` directly into `pyproject.toml`.
+- **No Global Packages:** Do not install global pnpm modules. Use existing dependencies in `package.json`.
+- **No Hardcoded URLs:** External connection strings or local container communication (backend-frontend) must use environment variables. Do not use `localhost:8000`.
+- **No Push:** Execution of `git push` is strictly prohibited.
 
-## 2. API & Data Sourcing
-- **Data Provider:** OpenF1 API.
-- **Rule:** Use existing API client/wrapper modules if available in the repository. Do not hardcode external HTTP requests inside the endpoints; abstract the data fetching to a service layer.
+## 3. Automation & Verification Loops
+Before marking a task as resolved, you must execute this sequence in the terminal:  
 
-## 3. Execution, Building & Verification (Harness Layer)
-Before declaring any task as finished, you MUST verify the build state using these strict steps:
+### 3.1 Compilation & Image Build
+1. **Backend Build:** `docker build -t f1-backend ./backend`.
+2. **Frontend Build:** `docker build -t f1-frontend ./frontend`.
 
-## 3.1 Build Verification
+### 3.2 Runtime & Integrity Check
+3. **Runtime Check:** `docker ps` (Containers must be status `Up`).
+4. **Log Audit (Backend):** `docker logs f1-backend`.
+5. **Log Audit (Frontend):** `docker logs f1-frontend`.
 
-### Phase 1: Backend Verification
-1. Execute `docker build -t f1-backend .` to ensure the backend container compiles.
-2. Run `docker logs f1-backend` to verify there are no hidden Python tracebacks or import errors.
+## 4. Version Control & Atomic Commits
+- **Trigger:** Create a local Git commit immediately after a single file or specific feature passes all verification loops in Section 3.
+- **Isolation:** Stage files selectively using `git add <file_path>`. Never use `git add .` unless all changes belong to the same atomic feature.
+- **Format:** Use lowercase conventional commits. Examples: `feat(backend): add openf1 driver endpoint`, `fix(frontend): resolve card crash`.
 
-## Phase 2: Frontend Verification
-1. Execute the frontend build command (e.g., `docker build -t f1-frontend .` or the correct command such as `npm run build`) to ensure the frontend compiles without errors.
-2. Run `docker logs f1-frontend` to verify there are no hidden javascript tracebacks or import errors.
-3. Verify that the changes in the user interface correspond to the new types or fields in the backend payload.
-
-## Phase 3: Container Runtime Verification
-1. **Runtime Check:** Deploy or check the status using `docker ps` to ensure the container remains in an `Up` status and does not enter a crash loop.
-
-## 4. Output Optimization
-- Do not explain code philosophy. 
-- Provide only the direct file modifications or new files required.
-- If a change breaks the Docker build, roll back the specific change immediately and re-evaluate the imports.
+## 5. Output Optimization
+- Do not explain code philosophy or architectural choices.
+- Output only the specific line modifications or newly created files.
+- If a change breaks any verification loop, roll back the files using Git immediately.
