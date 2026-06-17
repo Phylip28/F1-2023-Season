@@ -15,7 +15,6 @@
                 <h1>SEASON 2023</h1>
             </div>
             <div class="header-status">
-                <span class="status-dot green"></span>
                 <span class="status-text">LIVE TELEMETRY FEED</span>
             </div>
         </header>
@@ -42,7 +41,7 @@
                 </div>
                 
                 <div class="circuit-visualizer">
-                    <div class="nav-control-left" id="prevCircuit" title="Previous Circuit">
+                    <div class="nav-control-left" id="prevCircuit" role="button" tabindex="0" aria-label="Previous circuit">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="15 18 9 12 15 6"></polyline>
                         </svg>
@@ -52,7 +51,7 @@
                         <!-- SVG map -->
                     </div>
 
-                    <div class="nav-control-right" id="nextCircuit" title="Next Circuit">
+                    <div class="nav-control-right" id="nextCircuit" role="button" tabindex="0" aria-label="Next circuit">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
@@ -78,7 +77,7 @@
                         <button class="session-tab" data-filter="Practice">PRACTICE</button>
                     </div>
                 </div>
-                <div class="leaderboard-list" id="classificationList">
+                <div class="leaderboard-list" id="classificationList" aria-live="polite" aria-label="Driver classification">
                     <!-- Dynamic rows -->
                 </div>
             </aside>

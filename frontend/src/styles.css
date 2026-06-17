@@ -107,29 +107,13 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.status-dot.green {
-    background-color: #10b981;
-    box-shadow: 0 0 8px #10b981;
-    animation: blink 2s infinite;
-}
-
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-}
-
 .status-text {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 1px;
     color: var(--text-secondary);
+    text-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
 }
 
 /* 3-Panel Main Grid */
@@ -208,7 +192,16 @@ body {
     border-radius: 8px;
     padding: 10px 14px;
     cursor: pointer;
-    transition: all var(--transition-speed) ease;
+    transition: background var(--transition-speed) ease,
+                border-color var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease,
+                transform var(--transition-speed) ease;
+    min-w-0: 0;
+}
+
+.circuit-list-item:focus-visible {
+    outline: 2px solid var(--f1-red);
+    outline-offset: 2px;
 }
 
 .circuit-list-item:hover {
@@ -244,12 +237,16 @@ body {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
 }
 
 .circuit-list-item .gp-name {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .circuit-list-item .gp-location {
@@ -325,18 +322,22 @@ body {
     max-width: 90%;
     max-height: 95%;
     object-fit: contain;
-    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.1));
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    animation: zoomIn 0.5s ease;
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.12)) drop-shadow(0 0 60px rgba(225, 6, 0, 0.08));
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.4s ease;
+    animation: circuitReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: center;
 }
 
 .circuit-map img:hover {
     transform: scale(1.03);
+    filter: drop-shadow(0 0 35px rgba(255, 255, 255, 0.2)) drop-shadow(0 0 80px rgba(225, 6, 0, 0.15));
 }
 
-@keyframes zoomIn {
-    from { opacity: 0; transform: scale(0.92); }
-    to { opacity: 1; transform: scale(1); }
+@keyframes circuitReveal {
+    0%   { opacity: 0; transform: scale(0.88) translateY(10px); filter: blur(8px) brightness(0.5); }
+    60%  { filter: blur(0px) brightness(1.1); }
+    100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px) brightness(1); }
 }
 
 .nav-control-left,
@@ -351,7 +352,11 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-speed) ease;
+    transition: background var(--transition-speed) ease,
+                border-color var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease,
+                transform var(--transition-speed) ease,
+                color var(--transition-speed) ease;
     z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -363,6 +368,12 @@ body {
     border-color: var(--f1-red);
     box-shadow: 0 0 15px var(--f1-red-glow);
     transform: scale(1.08);
+}
+
+.nav-control-left:focus-visible,
+.nav-control-right:focus-visible {
+    outline: 2px solid var(--f1-red);
+    outline-offset: 3px;
 }
 
 /* Weather Telemetry Widget */
@@ -478,7 +489,9 @@ body {
     padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
-    transition: all var(--transition-speed) ease;
+    transition: background var(--transition-speed) ease,
+                color var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease;
 }
 
 .session-tab:hover {
@@ -489,6 +502,11 @@ body {
     background: var(--f1-red);
     color: #fff;
     box-shadow: 0 0 10px var(--f1-red-glow);
+}
+
+.session-tab:focus-visible {
+    outline: 2px solid var(--f1-red);
+    outline-offset: 2px;
 }
 
 /* Leaderboard List */
@@ -505,14 +523,21 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 12px 14px 12px 18px;
     display: grid;
     grid-template-columns: 28px 45px 1fr auto;
     align-items: center;
     gap: 10px;
     position: relative;
-    overflow: hidden;
-    transition: all var(--transition-speed) ease;
+    transition: background var(--transition-speed) ease,
+                border-color var(--transition-speed) ease,
+                transform var(--transition-speed) ease;
+    animation: rowFadeIn 0.3s ease both;
+}
+
+@keyframes rowFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .leaderboard-row:hover {
@@ -554,23 +579,32 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    min-width: 0;
 }
 
 .leaderboard-row .driver-name-group {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    min-width: 0;
 }
 
 .leaderboard-row .driver-name {
     font-size: 0.85rem;
     font-weight: 700;
     color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: pretty;
 }
 
 .leaderboard-row .team-badge {
     font-size: 0.7rem;
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .leaderboard-row .timing-stats {
@@ -578,6 +612,7 @@ body {
     flex-direction: column;
     align-items: flex-end;
     gap: 2px;
+    flex-shrink: 0;
 }
 
 .leaderboard-row .gap-time {
@@ -585,12 +620,14 @@ body {
     font-size: 0.85rem;
     font-weight: 700;
     color: #fff;
+    font-variant-numeric: tabular-nums;
 }
 
 .leaderboard-row .laps-count {
     font-size: 0.65rem;
     color: var(--text-muted);
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Status Badges */
@@ -650,10 +687,11 @@ body {
     height: 40px;
     filter: drop-shadow(0 0 8px var(--f1-red-glow));
     animation: spin 1.5s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+    transform-origin: center;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
+    0%   { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
@@ -742,3 +780,13 @@ body {
     }
 }
 
+/* ── Accessibility: Reduce Motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

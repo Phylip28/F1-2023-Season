@@ -139,18 +139,26 @@ function setupNavigation() {
     const nextButton = document.getElementById('nextCircuit');
     
     if (prevButton) {
-        prevButton.addEventListener('click', () => {
+        const prevHandler = () => {
             currentCircuitIndex = (currentCircuitIndex - 1 + circuits.length) % circuits.length;
             highlightActiveCircuitInList();
             updateDashboard();
+        };
+        prevButton.addEventListener('click', prevHandler);
+        prevButton.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); prevHandler(); }
         });
     }
     
     if (nextButton) {
-        nextButton.addEventListener('click', () => {
+        const nextHandler = () => {
             currentCircuitIndex = (currentCircuitIndex + 1) % circuits.length;
             highlightActiveCircuitInList();
             updateDashboard();
+        };
+        nextButton.addEventListener('click', nextHandler);
+        nextButton.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nextHandler(); }
         });
     }
 }
