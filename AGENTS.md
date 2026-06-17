@@ -12,6 +12,7 @@
 ## 2. Strict Boundary Constraints
 - **No Pip:** Never execute `pip install`. All dependency additions MUST use `uv add <package>` directly into `pyproject.toml`.
 - **No Global Packages:** Do not install global pnpm modules. Use existing dependencies in `package.json`.
+- **No Global Agent Skills:** Do not install agent skills, extensions, or tool packages globally on the host system. Any project package, skill configuration, or custom command extension must be isolated locally within the `.pi` directory or the project workspace.
 - **No Hardcoded URLs:** External connection strings or local container communication (backend-frontend) must use environment variables. Do not use `localhost:8000`.
 - **No Push:** Execution of `git push` is strictly prohibited.
 
