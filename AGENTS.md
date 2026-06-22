@@ -1,4 +1,4 @@
-# AGENTS.md - F1 2023 Season Map & Constraints
+# AGENTS.md
 
 This repository is designed for long-running coding-agent work. The goal is not
 to maximize raw code output. The goal is to leave the repo in a state where the
@@ -15,6 +15,30 @@ Before writing code:
 
 If baseline verification is already failing, fix that first. Do not stack new
 feature work on top of a broken starting state.
+
+## Working Rules
+
+- Work on one feature at a time.
+- Do not mark a feature complete just because code was added.
+- Keep changes within the selected feature scope unless a blocker forces a
+  narrow supporting fix.
+- Do not silently change verification rules during implementation.
+- Prefer durable repo artifacts over chat summaries.
+
+## Required Artifacts
+
+- `PROGRESS.md`: session log and current verified status
+- `init.sh`: standard startup and verification path
+- `session-handoff.md`: optional compact handoff for larger sessions
+
+## End Of Session
+
+Before ending a session:
+
+1. Update `PROGRESS.md`.
+2. Record any unresolved risk or blocker.
+3. Commit with a descriptive message once the work is in a safe state.
+4. Leave the repo clean enough for the next session to run `./init.sh` immediately.
 
 ## 1. System Architecture & Stack Map
 - **Backend Stack:** Python 3.11 | FastAPI.
