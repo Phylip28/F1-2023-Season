@@ -4,11 +4,17 @@ This repository is designed for long-running coding-agent work. The goal is not
 to maximize raw code output. The goal is to leave the repo in a state where the
 next session can continue without guessing.
 
-## First-Time Execution Commands
-1. **Sync backend:** `uv sync`
-2. **Activate virtual environment:** `source .venv/bin/activate`
-3. **Install frontend:** `cd frontend && pnpm install`
-4. **Spin up infrastructure:** (See automation cycle in Section 3 for Docker commands)
+## Startup Workflow
+
+Before writing code:
+
+1. Confirm the working directory with `pwd`.
+2. Read `PROGRESS.md` for the latest verified state and next step.
+3. Review recent commits with `git log --oneline -5`.
+4. Run `./init.sh`.
+
+If baseline verification is already failing, fix that first. Do not stack new
+feature work on top of a broken starting state.
 
 ## 1. System Architecture & Stack Map
 - **Backend Stack:** Python 3.11 | FastAPI.
