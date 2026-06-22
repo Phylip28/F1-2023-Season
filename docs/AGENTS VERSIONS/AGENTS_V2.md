@@ -1,15 +1,5 @@
 # AGENTS.md - F1 2023 Season Map & Constraints
 
-This repository is designed for long-running coding-agent work. The goal is not
-to maximize raw code output. The goal is to leave the repo in a state where the
-next session can continue without guessing.
-
-## First-Time Execution Commands
-1. **Sync backend:** `uv sync`
-2. **Activate virtual environment:** `source .venv/bin/activate`
-3. **Install frontend:** `cd frontend && pnpm install`
-4. **Spin up infrastructure:** (See automation cycle in Section 3 for Docker commands)
-
 ## 1. System Architecture & Stack Map
 - **Backend Stack:** Python 3.11 | FastAPI.
 - **Backend Package Manager:** `uv` (Astral).
