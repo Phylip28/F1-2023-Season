@@ -13,6 +13,7 @@ TABLE_LOAD_ORDER = [
     "circuits",
     "sessions",
     "drivers",
+    "driver_sessions",
     "session_results",
     "weather",
 ]
@@ -21,6 +22,7 @@ CSV_TO_TABLE = {
     "circuits": "circuits",
     "sessions": "sessions",
     "drivers": "drivers",
+    "driver_sessions": "driver_sessions",
     "results": "session_results",
     "weather": "weather",
 }
@@ -47,7 +49,6 @@ def _copy_table(cursor, table_name: str, csv_path: Path):
         headers = next(reader)
         columns = ", ".join(headers)
 
-        # Use psycopg2 copy_expert with COPY ... FROM STDIN CSV HEADER
         copy_sql = f"COPY {table_name} ({columns}) FROM STDIN WITH (FORMAT CSV, HEADER FALSE)"
         cursor.copy_expert(sql=copy_sql, file=f)
     print(f"Loaded {csv_path} into {table_name}")

@@ -18,14 +18,11 @@ class Session(Base):
     circuit_key: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("circuits.circuit_key"), nullable=True, index=True
     )
-    circuit_short_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    country_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    location: Mapped[str | None] = mapped_column(String(100), nullable=True)
     meeting_key: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     circuit: Mapped["Circuit"] = relationship("Circuit", back_populates="sessions")
-    drivers: Mapped[list["Driver"]] = relationship(
-        "Driver", back_populates="session", cascade="all, delete-orphan"
+    driver_sessions: Mapped[list["DriverSession"]] = relationship(
+        "DriverSession", back_populates="session", cascade="all, delete-orphan"
     )
     results: Mapped[list["SessionResult"]] = relationship(
         "SessionResult", back_populates="session", cascade="all, delete-orphan"

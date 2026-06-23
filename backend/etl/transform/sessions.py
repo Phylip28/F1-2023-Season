@@ -23,9 +23,6 @@ def transform_sessions(year: int | None = None) -> Path:
                 "date_end": normalize_datetime(item.get("date_end")),
                 "year": normalize_int(item.get("year")),
                 "circuit_key": normalize_int(item.get("circuit_key")),
-                "circuit_short_name": item.get("circuit_short_name"),
-                "country_name": item.get("country_name"),
-                "location": item.get("location"),
                 "meeting_key": normalize_int(item.get("meeting_key")),
             }
         )
@@ -39,9 +36,6 @@ def transform_sessions(year: int | None = None) -> Path:
         "date_end",
         "year",
         "circuit_key",
-        "circuit_short_name",
-        "country_name",
-        "location",
         "meeting_key",
     ]
 

@@ -54,7 +54,7 @@
 ### Session 002
 
 - Date: 2026-06-22/23
-- Goal: Implement Phase 2 — modular ETL pipeline with CSV intermediate verification layer.
+- Goal: Implement Phase 2 — modular ETL pipeline with CSV intermediate verification layer, plus normalización del esquema de drivers.
 - Completed:
   - Created `backend/etl/` structure with `extract/`, `transform/`, `load/`, `raw/`, `staging/`.
   - Added `backend/etl/config.py` with env-var based settings for OpenF1 URL, years, delays, paths.
@@ -68,6 +68,14 @@
   - Loaded 2023 data into PostgreSQL: 23 circuits, 118 sessions, 2266 drivers, 2224 results, 4206 weather readings.
   - Verified sample join query (Bahrain Race top 5) matches expected F1 2023 results.
   - Added `backend/etl/raw/` to `.gitignore`; committed staging CSVs for auditability.
+  - **Post-review normalization:**
+    - Split denormalized `drivers` table into:
+      - `drivers` (PK: `driver_number`, columns: `full_name`) — 46 rows.
+      - `driver_sessions` (PK: `session_key, driver_number`, columns: `team_name`) — 2266 rows.
+    - Removed redundant columns from `sessions`: `circuit_short_name`, `country_name`, `location`.
+    - Created Alembic migration `5f8ae59ccc8a_normalize_drivers_and_drop_redundant_session_columns`.
+    - Updated ETL transform/load scripts and regenerated staging CSVs with the new schema.
+    - Reloaded data and verified with JOIN query.
 - Verification run:
   - `docker build -t f1-backend -f backend/Dockerfile .` ✓
   - `docker build -t f1-frontend ./frontend` ✓
@@ -75,6 +83,8 @@
   - `docker logs f1-backend` — uvicorn running ✓
   - `docker logs f1-frontend` — nginx started ✓
   - Database counts verified via `psql` ✓
+  - Schema verified: `sessions` sin columnas redundantes, `drivers` PK en `driver_number`, `driver_sessions` con FKs ✓
+  - JOIN query Bahrain Race top 5 devuelve equipos correctos ✓
 - Commits: (pending)
 - Files or artifacts updated:
   - `.gitignore`
@@ -93,6 +103,11 @@
   - `backend/etl/load/csv_to_postgres.py`
   - `backend/etl/run_pipeline.py`
   - `backend/etl/staging/*.csv`
+  - `backend/app/models/__init__.py`
+  - `backend/app/models/session.py`
+  - `backend/app/models/driver.py`
+  - `backend/app/models/driver_session.py` (new)
+  - `backend/alembic/versions/5f8ae59ccc8a_normalize_drivers_and_drop_redundant_session_columns.py`
 - Known risk or unresolved issue:
   - ETL scripts are designed to run from the host with `uv` venv; not yet containerized.
   - Raw JSON files are gitignored and can be regenerated; staging CSVs are committed for auditability.
