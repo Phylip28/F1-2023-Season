@@ -5,7 +5,7 @@
 - Repository root: `/home/phylip/Downloads/F1-2023-Season`
 - Standard startup path: `./init.sh` ✓
 - Standard verification path: AGENTS.md Section 3 ✓
-- Current highest-priority unfinished feature: Refactor backend services to query PostgreSQL (Phase 3)
+- Current highest-priority unfinished feature: Production / AWS deployment readiness
 - Current blocker: None
 
 ## Session Log
@@ -48,13 +48,11 @@
   - `frontend/pnpm-lock.yaml`
 - Known risk or unresolved issue:
   - Existing `f1_service.py` still calls OpenF1 API directly; will be refactored in Phase 3.
-  - `frontend/src/app.js` still hardcodes `http://localhost:8000`; to be addressed with env vars in a future frontend refactor.
-- Next best step: Implement Phase 2 — modular ETL pipeline with CSV intermediate layer.
 
 ### Session 002
 
 - Date: 2026-06-22/23
-- Goal: Implement Phase 2 — modular ETL pipeline with CSV intermediate verification layer, plus normalización del esquema de drivers.
+- Goal: Implement Phase 2 — modular ETL pipeline with CSV intermediate verification layer, plus normalization of the drivers schema.
 - Completed:
   - Created `backend/etl/` structure with `extract/`, `transform/`, `load/`, `raw/`, `staging/`.
   - Added `backend/etl/config.py` with env-var based settings for OpenF1 URL, years, delays, paths.
@@ -83,9 +81,11 @@
   - `docker logs f1-backend` — uvicorn running ✓
   - `docker logs f1-frontend` — nginx started ✓
   - Database counts verified via `psql` ✓
-  - Schema verified: `sessions` sin columnas redundantes, `drivers` PK en `driver_number`, `driver_sessions` con FKs ✓
-  - JOIN query Bahrain Race top 5 devuelve equipos correctos ✓
-- Commits: (pending)
+  - Schema verified: `sessions` without redundant columns, `drivers` PK on `driver_number`, `driver_sessions` with FKs ✓
+  - JOIN query Bahrain Race top 5 returns correct teams ✓
+- Commits:
+  - `5ee03ab feat(etl): add modular extract-transform-load pipeline with csv verification layer`
+  - `ae3d28f refactor(schema): normalize drivers and remove redundant session columns`
 - Files or artifacts updated:
   - `.gitignore`
   - `backend/etl/config.py`
@@ -107,9 +107,62 @@
   - `backend/app/models/session.py`
   - `backend/app/models/driver.py`
   - `backend/app/models/driver_session.py` (new)
-  - `backend/alembic/versions/5f8ae59ccc8a_normalize_drivers_and_drop_redundant_session_columns.py`
+  - `backend/alembic/versions/5f8ae59ccc8a_normalize_drivers_and_drop_redundant_.py`
 - Known risk or unresolved issue:
-  - ETL scripts are designed to run from the host with `uv` venv; not yet containerized.
-  - Raw JSON files are gitignored and can be regenerated; staging CSVs are committed for auditability.
   - `f1_service.py` still queries OpenF1 API directly; Phase 3 will replace this with DB queries.
-- Next best step: Implement Phase 3 — refactor backend services to query PostgreSQL and add cache layer.
+
+### Session 003
+
+- Date: 2026-06-23
+- Goal: Implement Phase 3 — refactor backend services to query PostgreSQL with cache; implement Phase 4 — frontend integration via `/api` proxy and environment variables.
+- Completed:
+  - **Phase 3 — PostgreSQL-backed backend:**
+    - Removed all direct `requests` calls to OpenF1 from `app/services/f1_service.py`.
+    - Rewrote service functions as async and injected `AsyncSession` from `Depends(get_db)`.
+    - Implemented SQLAlchemy joins to reconstruct circuit metadata from the normalized schema.
+    - Implemented classification query joining `session_results`, `drivers`, `driver_sessions`, `sessions`, and `circuits`.
+    - Preserved gap/duration normalization logic for qualifying segments and non-numeric gaps.
+    - Created `backend/app/core/cache.py` with an in-memory TTL cache backend and a pluggable interface for Redis.
+    - Added cache settings to `app/core/config.py`: `CACHE_ENABLED`, `CACHE_TTL_SECONDS`, `REDIS_URL`.
+    - Wired cache into all service read paths with deterministic keys.
+    - Updated `app/routers/season.py` to async handlers with `AsyncSession = Depends(get_db)`.
+    - Added `app/services/__init__.py`.
+  - **Phase 4 — Frontend integration & environment variables:**
+    - Mounted backend season router under `/api` in `app/main.py`.
+    - Replaced hardcoded `http://localhost:8000` in `frontend/src/app.js` with `import.meta.env.VITE_API_BASE_URL` defaulting to `/api`.
+    - Added `VITE_API_BASE_URL` build arg to `frontend/Dockerfile`.
+    - Updated `docker-compose.yaml` to pass `VITE_API_BASE_URL: /api` and to pin service images to `f1-backend` / `f1-frontend`.
+    - Updated `frontend/nginx.conf` to proxy `/api/` requests to the backend service.
+    - Added `http://localhost:5173` and `http://127.0.0.1:5173` to CORS for Vite dev server.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up and healthy ✓
+  - `docker logs f1-backend` — uvicorn running, health checks 200 ✓
+  - `docker logs f1-frontend` — nginx started, API proxy active ✓
+  - API tests via nginx proxy:
+    - `GET /api/season/weather/63` → 161 Bahrain weather readings ✓
+    - `POST /api/season/classification` (Bahrain Race) → top 3 Verstappen, Pérez, Alonso ✓
+    - `GET /api/season/summary/63` → sessions with circuit metadata ✓
+    - `POST /api/season/ft_session` (Practice) → filtered sessions ✓
+    - Imola Race/weather → empty arrays (cancelled GP) ✓
+  - Frontend built JS contains `/api/season/...` calls instead of `localhost:8000` ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `backend/app/main.py`
+  - `backend/app/core/config.py`
+  - `backend/app/core/cache.py` (new)
+  - `backend/app/services/__init__.py` (new)
+  - `backend/app/services/f1_service.py`
+  - `backend/app/routers/season.py`
+  - `frontend/src/app.js`
+  - `frontend/Dockerfile`
+  - `frontend/nginx.conf`
+  - `docker-compose.yaml`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Cache is currently in-process memory. For multi-replica AWS deployment, switch to Redis by implementing `RedisCacheBackend` and setting `REDIS_URL`.
+  - ETL pipeline still runs from host venv; containerizing it is a future enhancement.
+  - No automated API tests yet; endpoints were verified manually with curl.
+- Next best step: Add automated tests, containerize ETL, or begin AWS deployment planning.

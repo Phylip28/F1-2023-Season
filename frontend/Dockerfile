@@ -1,5 +1,7 @@
 # Step 1: install dependencies and build
 FROM node:22-alpine AS builder
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 # Create a workdir and install deps
 WORKDIR /app
 COPY package*.json ./

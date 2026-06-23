@@ -17,6 +17,7 @@ services:
 
   backend:
     container_name: f1-backend
+    image: f1-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -31,7 +32,11 @@ services:
 
   frontend:
     container_name: f1-frontend
-    build: ./frontend
+    image: f1-frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
     ports:
       - "80:80"
     depends_on:
