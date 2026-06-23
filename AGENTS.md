@@ -60,7 +60,7 @@ Before ending a session:
 Before marking a task as resolved, you must execute this sequence in the terminal:  
 
 ### 3.1 Compilation & Image Build
-1. **Backend Build:** `docker build -t f1-backend ./backend`.
+1. **Backend Build:** `docker build -t f1-backend -f backend/Dockerfile .`.
 2. **Frontend Build:** `docker build -t f1-frontend ./frontend`.
 
 ### 3.2 Runtime & Integrity Check

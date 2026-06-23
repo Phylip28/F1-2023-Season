@@ -1,12 +1,41 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-f1_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-f1_password}
+      POSTGRES_DB: ${POSTGRES_DB:-f1_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-f1_user} -d ${POSTGRES_DB:-f1_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
-    build: ./backend
+    container_name: f1-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://f1_user:f1_password@postgres:5432/f1_db}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql+psycopg2://f1_user:f1_password@postgres:5432/f1_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
+    container_name: f1-frontend
     build: ./frontend
     ports:
       - "80:80"
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
