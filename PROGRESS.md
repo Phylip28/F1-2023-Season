@@ -332,3 +332,44 @@
   - The lap counter HUD is still static ("1/57"); it could be wired to `laps` data later.
   - Progress bar is display-only; click-to-seek is not implemented yet.
 - Next best step: Visually verify the simulation in a browser and refine alignment / add seek bar.
+
+### Session 007
+
+- Date: 2026-06-24
+- Goal: Improve simulation overlay UX — swap panels, smooth overtake animations, unified play/pause, skip/restart buttons, lap counter and tyre compound data.
+- Completed:
+  - **Swapped simulation overlay panels:** Timing tower now on the left, controls on the right.
+  - **FLIP animation for overtakes:** When driver positions change, tower rows glide smoothly to their new positions using getBoundingClientRect-based delta transforms. Added CSS will-change and transition support.
+  - **Unified play/pause button:** Merged Play + Pause into a single toggle button that swaps icon (play / pause) based on state.
+  - **Restart button:** Resets playback to race start (or formation lap start) and clears leaderboard state.
+  - **Skip +/-10s buttons:** Jump forward/backward 10 seconds; preserves play/pause state during skip.
+  - **Click-to-seek on progress bar:** Click anywhere on the progress track to jump to that point in the race.
+  - **HUD lap counter:** Simulation bundle now includes per-frame `laps` array and `total_laps` field. HUD shows "LAP X / 57" for the race leader.
+  - **Tyre compound data:** Added `_fetch_stints()` to query OpenF1 `/stints` endpoint per driver. Bundle includes `tyres` map with compound, color, and lap ranges for each driver.
+  - **Backend:** Updated `simulation.py` to query laps from PostgreSQL and stints from OpenF1. Regenerated all 22 simulation bundles (some stints partial due to OpenF1 rate limiting, laps complete for all).
+  - **CSS updates:** Swapped grid-template-columns from `240px 1fr 260px` to `260px 1fr 240px`. Adjusted borders accordingly. Added styles for unified toggle, tower row transitions, tower slide-in animation.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - `POST /api/season/classification` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → 200, total_laps: 57, tyres: 20 drivers, laps data present ✓
+  - Frontend HTML serves new buttons (simPlayToggleBtn, simSkipBackBtn, simSkipFwdBtn, simRestartBtn) ✓
+  - Frontend JS contains minified FLIP animation, HUD lap logic, toggle/restart/skip functions ✓
+  - Stints: 70 records for Bahrain, tyre map with compounds/colors per driver ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/index.html`
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `backend/etl/transform/simulation.py`
+  - `backend/etl/staging/simulation/*.json` (22 bundles regenerated)
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Some stints failed with HTTP 429 (rate limiting) from OpenF1; bundles have partial tyre data.
+  - Tyre data is in the bundle but not yet displayed in the HUD or timing tower (data plumbing ready, UI pending).
+  - Lap HUD shows leader's lap; could be extended to show individual driver laps.
+- Next best step: Add tyre compound visualization to the timing tower and car dots (colored borders or icons). Consider adding a separate ETL step for stints to avoid API rate limits.
