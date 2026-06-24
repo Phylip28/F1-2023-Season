@@ -213,3 +213,7 @@ backend/etl/staging/simulation/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Playwright session artifacts
+.playwright-mcp/
+.screenshots/

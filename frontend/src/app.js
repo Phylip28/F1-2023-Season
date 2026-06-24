@@ -453,7 +453,12 @@ let simState = {
     animationFrameId: null,
     dots: [],
     lastOrderSignature: null,
-    trackTransform: null
+    trackTransform: null,
+    prevPositions: null,
+    positionChanges: {},
+    formationFrame: 0,
+    raceStartFrameIdx: 0,
+    mode: 'race'
 };
 const SIMULATION_PATH = '/simulation';
 
@@ -476,14 +481,6 @@ function setupSimulation() {
         closeBtn.addEventListener('click', closeSimulation);
     }
 
-    if (overlay) {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay || e.target.classList.contains('simulation-backdrop')) {
-                closeSimulation();
-            }
-        });
-    }
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && isSimulationOpen) {
             closeSimulation();
@@ -500,6 +497,41 @@ function setupSimulation() {
             renderFrame(simState.currentFrame);
         }, 150);
     });
+
+    const modeFormation = document.getElementById('simModeFormation');
+    const modeRaceStart = document.getElementById('simModeRaceStart');
+
+    if (modeFormation) {
+        modeFormation.addEventListener('click', () => {
+            if (!simulationData) return;
+            simState.mode = 'formation';
+            simState.currentFrame = simState.formationFrame;
+            simState.prevPositions = null;
+            simState.positionChanges = {};
+            simState.lastOrderSignature = null;
+            modeFormation.classList.add('sim-mode-active');
+            if (modeRaceStart) modeRaceStart.classList.remove('sim-mode-active');
+            stopPlayback();
+            renderFrame(simState.currentFrame);
+            startPlayback();
+        });
+    }
+
+    if (modeRaceStart) {
+        modeRaceStart.addEventListener('click', () => {
+            if (!simulationData) return;
+            simState.mode = 'race';
+            simState.currentFrame = simState.raceStartFrameIdx;
+            simState.prevPositions = null;
+            simState.positionChanges = {};
+            simState.lastOrderSignature = null;
+            modeRaceStart.classList.add('sim-mode-active');
+            if (modeFormation) modeFormation.classList.remove('sim-mode-active');
+            stopPlayback();
+            renderFrame(simState.currentFrame);
+            startPlayback();
+        });
+    }
 
     setupSimulationControls();
 }
@@ -553,10 +585,22 @@ async function loadSimulation() {
         simulationData = await response.json();
         buildDots();
         simState.lastOrderSignature = null;
+        simState.prevPositions = null;
+        simState.positionChanges = {};
         computeTrackTransform();
         drawTrack();
         const startFrame = findRaceStartFrame(simulationData);
+        simState.formationFrame = 0;
+        simState.raceStartFrameIdx = startFrame;
+        simState.mode = 'race';
         simState.currentFrame = startFrame;
+
+        // Sync mode button states to defaults
+        const mf = document.getElementById('simModeFormation');
+        const mr = document.getElementById('simModeRaceStart');
+        if (mf) mf.classList.remove('sim-mode-active');
+        if (mr) mr.classList.add('sim-mode-active');
+
         renderFrame(startFrame);
     } catch (error) {
         console.error('Error loading simulation data:', error);
@@ -806,8 +850,8 @@ function renderFrame(frameFloat) {
     if (simProgressFill) simProgressFill.style.width = `${progress * 100}%`;
 }
 
-// Rebuild the running-order panel only when the order actually changes, so the
-// list stays stable instead of being torn down and rebuilt 60 times a second.
+// Rebuild the F1 timing tower only when order changes; track position deltas
+// for flash animations and change badges.
 function renderLeaderboard(positions) {
     const leaderboardList = document.getElementById('simLeaderboardList');
     if (!leaderboardList) return;
@@ -820,20 +864,75 @@ function renderLeaderboard(positions) {
     indexed.sort((a, b) => a.position - b.position);
 
     const signature = indexed.map(e => e.num).join(',');
+
+    const now = performance.now();
+
+    // Record position changes vs previous snapshot
+    if (simState.prevPositions !== null) {
+        indexed.forEach(entry => {
+            if (entry.position === 99) return;
+            const prev = simState.prevPositions[entry.num];
+            if (prev !== undefined && prev !== entry.position) {
+                const delta = prev - entry.position; // positive = moved up
+                simState.positionChanges[entry.num] = { delta, ts: now };
+            }
+        });
+    }
+    const currentMap = {};
+    indexed.forEach(e => { if (e.position !== 99) currentMap[e.num] = e.position; });
+    simState.prevPositions = currentMap;
+
     if (signature === simState.lastOrderSignature) return;
     simState.lastOrderSignature = signature;
 
+    // Expire badges older than 4 s
+    Object.keys(simState.positionChanges).forEach(num => {
+        if (now - simState.positionChanges[num].ts > 4000) {
+            delete simState.positionChanges[num];
+        }
+    });
+
     leaderboardList.innerHTML = '';
-    indexed.forEach((entry) => {
+    indexed.forEach(entry => {
+        const isP1 = entry.position === 1;
+        const chg = simState.positionChanges[entry.num];
+
         const row = document.createElement('div');
-        row.className = 'sim-leaderboard-row';
-        const gap = entry.position === 1 ? 'LEADER' : '';
-        row.innerHTML = `
-            <span class="sim-row-pos">${entry.position === 99 ? '-' : entry.position}</span>
-            <span class="sim-row-driver">${driverInitials(entry.driver.name)}</span>
-            <span class="sim-row-team">${entry.driver.team}</span>
-            <span class="sim-row-gap">${gap}</span>
-        `;
+        row.className = `tower-row${isP1 ? ' tower-p1' : ''}`;
+        if (chg && now - chg.ts < 800) {
+            row.classList.add(chg.delta > 0 ? 'gained' : 'lost');
+        }
+
+        const stripe = document.createElement('div');
+        stripe.className = 'tower-row-stripe';
+        stripe.style.backgroundColor = entry.driver.team_color;
+        row.appendChild(stripe);
+
+        const posEl = document.createElement('span');
+        posEl.className = 'tower-col-pos';
+        posEl.textContent = entry.position === 99 ? '-' : entry.position;
+        row.appendChild(posEl);
+
+        const driverBlock = document.createElement('div');
+        driverBlock.className = 'tower-driver-block';
+        driverBlock.innerHTML = `<span class="tower-driver-code">${driverInitials(entry.driver.name)}</span><span class="tower-team-name">${entry.driver.team}</span>`;
+        row.appendChild(driverBlock);
+
+        const gapEl = document.createElement('span');
+        gapEl.className = 'tower-col-gap';
+        gapEl.textContent = isP1 ? 'LEADER' : (entry.position === 99 ? '-' : '');
+        row.appendChild(gapEl);
+
+        const chgEl = document.createElement('span');
+        chgEl.className = 'tower-col-chg';
+        if (chg && chg.delta !== 0) {
+            const badge = document.createElement('span');
+            badge.className = `tower-chg-badge ${chg.delta > 0 ? 'up' : 'down'}`;
+            badge.textContent = chg.delta > 0 ? `▲${chg.delta}` : `▼${Math.abs(chg.delta)}`;
+            chgEl.appendChild(badge);
+        }
+        row.appendChild(chgEl);
+
         leaderboardList.appendChild(row);
     });
 }
