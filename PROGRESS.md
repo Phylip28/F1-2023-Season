@@ -2,34 +2,214 @@
 
 ## Current Verified State
 
-- Repository root:
-- Standard startup path:
-- Standard verification path:
-- Current highest-priority unfinished feature:
-- Current blocker:
+- Repository root: `/home/phylip/Downloads/F1-2023-Season`
+- Standard startup path: `./init.sh` ✓
+- Standard verification path: AGENTS.md Section 3 ✓
+- Current highest-priority unfinished feature: Ingest OpenF1 location/position data and wire the race simulation overlay to real telemetry
+- Current blocker: None
 
 ## Session Log
 
 ### Session 001
 
-- Date:
-- Goal:
+- Date: 2026-06-22
+- Goal: Implement Phases 0 and 1 — PostgreSQL infrastructure and SQLAlchemy schema.
 - Completed:
+  - Added PostgreSQL 16 service to `docker-compose.yaml` with healthcheck and persistent volume.
+  - Migrated backend Dockerfile from pip/requirements.txt to `uv` using `pyproject.toml`/`uv.lock`.
+  - Added `container_name` to backend and frontend services so AGENTS.md log commands work.
+  - Added dependencies: `sqlalchemy`, `asyncpg`, `alembic`, `psycopg2-binary` via `uv add`.
+  - Created `backend/app/core/config.py` to read `DATABASE_URL` and `DATABASE_URL_SYNC` from env vars.
+  - Created `backend/app/db/session.py` with async SQLAlchemy engine/session.
+  - Created SQLAlchemy models: `Circuit`, `Session`, `Driver`, `SessionResult`, `Weather`.
+  - Initialized Alembic and generated initial migration `c2df5d3f5cfb_initial_schema`.
+  - Applied migration to PostgreSQL; verified tables created.
+  - Fixed frontend Dockerfile healthcheck to use `127.0.0.1` instead of `localhost` (IPv6 issue).
+  - Updated `AGENTS.md` backend build command to match new Dockerfile build context.
 - Verification run:
-- Evidence captured:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend` ✓
+  - `docker ps` — all containers Up and healthy ✓
+  - `docker logs f1-backend` — uvicorn running, health checks 200 ✓
+  - `docker logs f1-frontend` — nginx started successfully ✓
 - Commits:
+  - `7a7faf0 feat(infra): add postgresql service and migrate docker to uv`
+  - `23b8769 feat(backend): add sqlalchemy models and alembic initial migration`
 - Files or artifacts updated:
+  - `pyproject.toml`, `uv.lock`
+  - `docker-compose.yaml`
+  - `backend/Dockerfile`
+  - `frontend/Dockerfile`
+  - `AGENTS.md`
+  - `backend/app/core/config.py`
+  - `backend/app/db/session.py`
+  - `backend/app/models/*`
+  - `backend/alembic/*`, `backend/alembic.ini`
+  - `frontend/pnpm-lock.yaml`
 - Known risk or unresolved issue:
-- Next best step:
+  - Existing `f1_service.py` still calls OpenF1 API directly; will be refactored in Phase 3.
 
 ### Session 002
 
-- Date:
-- Goal:
+- Date: 2026-06-22/23
+- Goal: Implement Phase 2 — modular ETL pipeline with CSV intermediate verification layer, plus normalization of the drivers schema.
 - Completed:
+  - Created `backend/etl/` structure with `extract/`, `transform/`, `load/`, `raw/`, `staging/`.
+  - Added `backend/etl/config.py` with env-var based settings for OpenF1 URL, years, delays, paths.
+  - Created `backend/etl/extract/client.py` with retries, rate-limit backoff, and 404 handling.
+  - Created modular extraction scripts: `sessions.py`, `drivers.py`, `results.py`, `weather.py` (all resumable).
+  - Extracted 2023 season: 118 sessions, 2266 driver records, 2224 result records, 4206 weather records.
+  - Created transformation scripts: `circuits.py`, `sessions.py`, `drivers.py`, `results.py`, `weather.py`.
+  - Normalized `gap_to_leader` into numeric + raw columns; deduplicated drivers/results; validated FKs.
+  - Generated staging CSVs and reviewed them (agent verification layer).
+  - Created `backend/etl/load/csv_to_postgres.py` using `COPY` in a single transaction.
+  - Loaded 2023 data into PostgreSQL: 23 circuits, 118 sessions, 2266 drivers, 2224 results, 4206 weather readings.
+  - Verified sample join query (Bahrain Race top 5) matches expected F1 2023 results.
+  - Added `backend/etl/raw/` to `.gitignore`; committed staging CSVs for auditability.
+  - **Post-review normalization:**
+    - Split denormalized `drivers` table into:
+      - `drivers` (PK: `driver_number`, columns: `full_name`) — 46 rows.
+      - `driver_sessions` (PK: `session_key, driver_number`, columns: `team_name`) — 2266 rows.
+    - Removed redundant columns from `sessions`: `circuit_short_name`, `country_name`, `location`.
+    - Created Alembic migration `5f8ae59ccc8a_normalize_drivers_and_drop_redundant_session_columns`.
+    - Updated ETL transform/load scripts and regenerated staging CSVs with the new schema.
+    - Reloaded data and verified with JOIN query.
 - Verification run:
-- Evidence captured:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend` ✓
+  - `docker ps` — all containers Up and healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx started ✓
+  - Database counts verified via `psql` ✓
+  - Schema verified: `sessions` without redundant columns, `drivers` PK on `driver_number`, `driver_sessions` with FKs ✓
+  - JOIN query Bahrain Race top 5 returns correct teams ✓
 - Commits:
+  - `5ee03ab feat(etl): add modular extract-transform-load pipeline with csv verification layer`
+  - `ae3d28f refactor(schema): normalize drivers and remove redundant session columns`
 - Files or artifacts updated:
+  - `.gitignore`
+  - `backend/etl/config.py`
+  - `backend/etl/extract/client.py`
+  - `backend/etl/extract/sessions.py`
+  - `backend/etl/extract/drivers.py`
+  - `backend/etl/extract/results.py`
+  - `backend/etl/extract/weather.py`
+  - `backend/etl/transform/utils.py`
+  - `backend/etl/transform/circuits.py`
+  - `backend/etl/transform/sessions.py`
+  - `backend/etl/transform/drivers.py`
+  - `backend/etl/transform/results.py`
+  - `backend/etl/transform/weather.py`
+  - `backend/etl/load/csv_to_postgres.py`
+  - `backend/etl/run_pipeline.py`
+  - `backend/etl/staging/*.csv`
+  - `backend/app/models/__init__.py`
+  - `backend/app/models/session.py`
+  - `backend/app/models/driver.py`
+  - `backend/app/models/driver_session.py` (new)
+  - `backend/alembic/versions/5f8ae59ccc8a_normalize_drivers_and_drop_redundant_.py`
 - Known risk or unresolved issue:
-- Next best step:
+  - `f1_service.py` still queries OpenF1 API directly; Phase 3 will replace this with DB queries.
+
+### Session 003
+
+- Date: 2026-06-23
+- Goal: Implement Phase 3 — refactor backend services to query PostgreSQL with cache; implement Phase 4 — frontend integration via `/api` proxy and environment variables.
+- Completed:
+  - **Phase 3 — PostgreSQL-backed backend:**
+    - Removed all direct `requests` calls to OpenF1 from `app/services/f1_service.py`.
+    - Rewrote service functions as async and injected `AsyncSession` from `Depends(get_db)`.
+    - Implemented SQLAlchemy joins to reconstruct circuit metadata from the normalized schema.
+    - Implemented classification query joining `session_results`, `drivers`, `driver_sessions`, `sessions`, and `circuits`.
+    - Preserved gap/duration normalization logic for qualifying segments and non-numeric gaps.
+    - Created `backend/app/core/cache.py` with an in-memory TTL cache backend and a pluggable interface for Redis.
+    - Added cache settings to `app/core/config.py`: `CACHE_ENABLED`, `CACHE_TTL_SECONDS`, `REDIS_URL`.
+    - Wired cache into all service read paths with deterministic keys.
+    - Updated `app/routers/season.py` to async handlers with `AsyncSession = Depends(get_db)`.
+    - Added `app/services/__init__.py`.
+  - **Phase 4 — Frontend integration & environment variables:**
+    - Mounted backend season router under `/api` in `app/main.py`.
+    - Replaced hardcoded `http://localhost:8000` in `frontend/src/app.js` with `import.meta.env.VITE_API_BASE_URL` defaulting to `/api`.
+    - Added `VITE_API_BASE_URL` build arg to `frontend/Dockerfile`.
+    - Updated `docker-compose.yaml` to pass `VITE_API_BASE_URL: /api` and to pin service images to `f1-backend` / `f1-frontend`.
+    - Updated `frontend/nginx.conf` to proxy `/api/` requests to the backend service.
+    - Added `http://localhost:5173` and `http://127.0.0.1:5173` to CORS for Vite dev server.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up and healthy ✓
+  - `docker logs f1-backend` — uvicorn running, health checks 200 ✓
+  - `docker logs f1-frontend` — nginx started, API proxy active ✓
+  - API tests via nginx proxy:
+    - `GET /api/season/weather/63` → 161 Bahrain weather readings ✓
+    - `POST /api/season/classification` (Bahrain Race) → top 3 Verstappen, Pérez, Alonso ✓
+    - `GET /api/season/summary/63` → sessions with circuit metadata ✓
+    - `POST /api/season/ft_session` (Practice) → filtered sessions ✓
+    - Imola Race/weather → empty arrays (cancelled GP) ✓
+  - Frontend built JS contains `/api/season/...` calls instead of `localhost:8000` ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `backend/app/main.py`
+  - `backend/app/core/config.py`
+  - `backend/app/core/cache.py` (new)
+  - `backend/app/services/__init__.py` (new)
+  - `backend/app/services/f1_service.py`
+  - `backend/app/routers/season.py`
+  - `frontend/src/app.js`
+  - `frontend/Dockerfile`
+  - `frontend/nginx.conf`
+  - `docker-compose.yaml`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Cache is currently in-process memory. For multi-replica AWS deployment, switch to Redis by implementing `RedisCacheBackend` and setting `REDIS_URL`.
+  - ETL pipeline still runs from host venv; containerizing it is a future enhancement.
+  - No automated API tests yet; endpoints were verified manually with curl.
+- Next best step: Add automated tests, containerize ETL, or begin AWS deployment planning.
+
+### Session 004
+
+- Date: 2026-06-23/24
+- Goal: Add UI animations and create the race simulation overlay page.
+- Completed:
+  - **UI Animations:**
+    - Added `livePulse` animation to the header status dot.
+    - Added panel entrance choreography: header drops, sidebar slides from left, center scales up, leaderboard slides from right.
+    - Improved leaderboard row entrance with slide-from-left and staggered delays via `--row-index`.
+    - Added staggered card reveal animation to weather telemetry cards via `--card-index`.
+    - Added hover/active micro-interactions to the new Simulate button and session tabs.
+    - Added `.skeleton` utility class with shimmer animation for future loading states.
+    - Preserved `prefers-reduced-motion` accessibility guard.
+  - **Race Simulation Overlay:**
+    - Added "SIMULATE RACE" button to the app header.
+    - Created a full-screen overlay (`simulation-overlay`) with backdrop blur and scale/fade entrance animation.
+    - Overlay includes:
+      - Header with round badge, circuit name, subtitle, and animated close button.
+      - Main area split into circuit visualization (SVG + animated placeholder dots) and live leaderboard.
+      - HUD showing lap, time, and leader.
+      - Footer controls: play/pause, speed selector (1×/2×/5×/10×), and progress bar.
+    - Implemented `openSimulation()`, `closeSimulation()`, `renderSimulation()`, and keyboard support (Escape to close, Enter/Space to open).
+    - Added placeholder dots with pulsing animation and a placeholder leaderboard to validate the layout.
+    - Updated `updateDashboard()` so the overlay re-renders when the active circuit changes while open.
+- Verification run:
+  - `pnpm install && pnpm run build` — frontend builds successfully ✓
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - API test `POST /api/season/classification` returns 200 ✓
+  - Served HTML contains "SIMULATE RACE" button and `simulation-overlay` markup ✓
+  - Built JS contains `openSimulation`/`closeSimulation`/`renderSimulation` logic ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/index.html`
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Simulation overlay currently uses placeholder dots and a static placeholder leaderboard.
+  - Real OpenF1 `location` and `position` data has not been extracted yet.
+  - No browser-level automated test was run; visual behavior (entrance animation, modal open/close) was verified by inspecting the built assets.
+- Next best step: Extract and load OpenF1 `location`/`position`/`laps` data, then wire the simulation overlay to real telemetry.

@@ -15,8 +15,13 @@
                 <h1>SEASON 2023</h1>
             </div>
             <div class="header-status">
+                <span class="status-dot" aria-hidden="true"></span>
                 <span class="status-text">LIVE TELEMETRY FEED</span>
             </div>
+            <button class="simulate-btn" id="simulateBtn" type="button">
+                <span class="simulate-icon" aria-hidden="true">▶</span>
+                <span>SIMULATE RACE</span>
+            </button>
         </header>
 
         <div class="dashboard-grid">
@@ -81,6 +86,80 @@
                     <!-- Dynamic rows -->
                 </div>
             </aside>
+        </div>
+    </div>
+
+    <!-- Race Simulation Overlay -->
+    <div class="simulation-overlay" id="simulationOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="simTitle">
+        <div class="simulation-backdrop"></div>
+        <div class="simulation-modal">
+            <header class="simulation-header">
+                <div class="simulation-title-group">
+                    <span class="simulation-round" id="simRound">R01</span>
+                    <h2 class="simulation-title" id="simTitle">Bahrain Grand Prix</h2>
+                    <span class="simulation-subtitle" id="simSubtitle">Race Simulation</span>
+                </div>
+                <button class="simulation-close" id="simCloseBtn" type="button" aria-label="Close simulation">✕</button>
+            </header>
+
+            <main class="simulation-body">
+                <section class="simulation-track" aria-label="Circuit simulation">
+                    <div class="simulation-track-visual" id="simTrackVisual">
+                        <img id="simCircuitImage" src="" alt="Circuit map">
+                        <div class="simulation-dots" id="simDots"></div>
+                    </div>
+                    <div class="simulation-hud">
+                        <div class="hud-item">
+                            <span class="hud-label">LAP</span>
+                            <span class="hud-value" id="simLap">1/57</span>
+                        </div>
+                        <div class="hud-item">
+                            <span class="hud-label">TIME</span>
+                            <span class="hud-value" id="simTime">14:01:00</span>
+                        </div>
+                        <div class="hud-item">
+                            <span class="hud-label">LEADER</span>
+                            <span class="hud-value" id="simLeader">VER</span>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="simulation-leaderboard" aria-label="Live positions">
+                    <div class="sim-leaderboard-header">
+                        <span>POS</span>
+                        <span>DRIVER</span>
+                        <span>TEAM</span>
+                        <span>GAP</span>
+                    </div>
+                    <div class="sim-leaderboard-list" id="simLeaderboardList">
+                        <!-- Populated by JS -->
+                    </div>
+                </aside>
+            </main>
+
+            <footer class="simulation-controls">
+                <button class="control-btn" id="simPlayBtn" type="button" aria-label="Play simulation">
+                    <span>▶</span>
+                </button>
+                <button class="control-btn" id="simPauseBtn" type="button" aria-label="Pause simulation">
+                    <span>⏸</span>
+                </button>
+                <div class="speed-control">
+                    <span class="speed-label">SPEED</span>
+                    <div class="speed-options" id="simSpeedOptions">
+                        <button class="speed-btn active" data-speed="1" type="button">1×</button>
+                        <button class="speed-btn" data-speed="2" type="button">2×</button>
+                        <button class="speed-btn" data-speed="5" type="button">5×</button>
+                        <button class="speed-btn" data-speed="10" type="button">10×</button>
+                    </div>
+                </div>
+                <div class="progress-control">
+                    <span class="progress-time" id="simProgressTime">0%</span>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="simProgressFill"></div>
+                    </div>
+                </div>
+            </footer>
         </div>
     </div>
 

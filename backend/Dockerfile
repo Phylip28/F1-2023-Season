@@ -1,28 +1,20 @@
-# Step 1: Install dependencies
-FROM python:3.11-slim AS builder
-# Create a workdir and update system packages
+# Step 1: Build virtual environment with uv
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc \
-    && rm -rf /var/lib/apt/lists/*
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir --upgrade pip && \ 
-    pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
 
 
 # Step 2: Set up the final image
 FROM python:3.11-slim AS final
-# Create a workdir and copy tools from the builder stage
 WORKDIR /app
-COPY --from=builder /opt/venv /opt/venv
-COPY ./app ./app
+COPY --from=builder /app/.venv /app/.venv
+COPY backend/app ./app
 # Create a new user and set permissions
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 # Set environment variables and switch to new user
-ENV PATH="/opt/venv/bin:$PATH" \
+ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 USER appuser

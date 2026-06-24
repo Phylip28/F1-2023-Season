@@ -194,6 +194,10 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# ETL raw data (regenerable from OpenF1 API)
+backend/etl/raw/
+
+
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data

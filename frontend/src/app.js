@@ -1,5 +1,5 @@
 // Configuration
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const CIRCUITS_PATH = '/assets/circuits';
 
 // Circuit data from circuits-information.csv (with location and round metadata)
@@ -32,6 +32,8 @@ const circuits = [
 // State management
 let currentCircuitIndex = 0;
 let currentFilter = 'Race';
+let simulationSpeed = 1;
+let isSimulationOpen = false;
 
 // Constructor Color Mapping
 function getConstructorColor(teamName) {
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCircuitsList();
     setupNavigation();
     setupSessionTabs();
+    setupSimulation();
     updateDashboard();
 });
 
@@ -107,6 +110,9 @@ function updateDashboard() {
     displayCurrentCircuit();
     loadWeather();
     loadDriverClassification();
+    if (isSimulationOpen) {
+        renderSimulation();
+    }
 }
 
 // Display current active circuit
@@ -208,33 +214,33 @@ async function loadWeather() {
 function displayWeather(weather) {
     const weatherWidget = document.getElementById('weatherWidget');
     if (!weatherWidget) return;
-    
+
     const airTemp = weather.air_temperature !== null ? `${weather.air_temperature.toFixed(1)}°C` : 'N/A';
     const trackTemp = weather.track_temperature !== null ? `${weather.track_temperature.toFixed(1)}°C` : 'N/A';
     const humidity = weather.humidity !== null ? `${weather.humidity.toFixed(0)}%` : 'N/A';
     const windSpeed = weather.wind_speed !== null ? `${(weather.wind_speed * 3.6).toFixed(1)} km/h` : 'N/A';
     const rainText = weather.rainfall ? 'WET' : 'DRY';
     const rainClass = weather.rainfall ? 'rain-wet' : 'rain-dry';
-    
+
     weatherWidget.innerHTML = `
         <div class="telemetry-grid">
-            <div class="telemetry-card">
+            <div class="telemetry-card" style="--card-index:0">
                 <span class="telemetry-label">AIR TEMP</span>
                 <span class="telemetry-value text-glow-red">${airTemp}</span>
             </div>
-            <div class="telemetry-card">
+            <div class="telemetry-card" style="--card-index:1">
                 <span class="telemetry-label">TRACK TEMP</span>
                 <span class="telemetry-value text-glow-red">${trackTemp}</span>
             </div>
-            <div class="telemetry-card">
+            <div class="telemetry-card" style="--card-index:2">
                 <span class="telemetry-label">HUMIDITY</span>
                 <span class="telemetry-value">${humidity}</span>
             </div>
-            <div class="telemetry-card">
+            <div class="telemetry-card" style="--card-index:3">
                 <span class="telemetry-label">WIND SPEED</span>
                 <span class="telemetry-value">${windSpeed}</span>
             </div>
-            <div class="telemetry-card ${rainClass}">
+            <div class="telemetry-card ${rainClass}" style="--card-index:4">
                 <span class="telemetry-label">TRACK STATE</span>
                 <span class="telemetry-value">${rainText}</span>
             </div>
@@ -308,16 +314,17 @@ function displayClassification(classificationRows) {
         return;
     }
 
-    classificationRows.forEach(row => {
-        const rowElement = createClassificationRow(row);
+    classificationRows.forEach((row, index) => {
+        const rowElement = createClassificationRow(row, index);
         classificationList.appendChild(rowElement);
     });
 }
 
 // Create a timing board row element
-function createClassificationRow(row) {
+function createClassificationRow(row, index = 0) {
     const rowDiv = document.createElement('div');
     rowDiv.className = 'leaderboard-row';
+    rowDiv.style.setProperty('--row-index', index);
     
     // Fetch appropriate constructor brand color
     const teamColor = getConstructorColor(row.team_name);
@@ -433,4 +440,167 @@ function setupSessionTabs() {
             loadDriverClassification();
         });
     });
+}
+/* ═══════════════════════════════════════════════════════════════════════
+   RACE SIMULATION OVERLAY
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function setupSimulation() {
+    const simulateBtn = document.getElementById('simulateBtn');
+    const closeBtn = document.getElementById('simCloseBtn');
+    const overlay = document.getElementById('simulationOverlay');
+
+    if (simulateBtn) {
+        simulateBtn.addEventListener('click', openSimulation);
+        simulateBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openSimulation();
+            }
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSimulation);
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || e.target.classList.contains('simulation-backdrop')) {
+                closeSimulation();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isSimulationOpen) {
+            closeSimulation();
+        }
+    });
+
+    setupSimulationControls();
+}
+
+function openSimulation() {
+    const overlay = document.getElementById('simulationOverlay');
+    if (!overlay) return;
+
+    isSimulationOpen = true;
+    renderSimulation();
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    const closeBtn = document.getElementById('simCloseBtn');
+    if (closeBtn) closeBtn.focus();
+}
+
+function closeSimulation() {
+    const overlay = document.getElementById('simulationOverlay');
+    if (!overlay) return;
+
+    isSimulationOpen = false;
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function renderSimulation() {
+    const circuit = circuits[currentCircuitIndex];
+
+    const simRound = document.getElementById('simRound');
+    const simTitle = document.getElementById('simTitle');
+    const simCircuitImage = document.getElementById('simCircuitImage');
+    const simDots = document.getElementById('simDots');
+    const simLeaderboardList = document.getElementById('simLeaderboardList');
+
+    if (simRound) simRound.textContent = circuit.round;
+    if (simTitle) simTitle.textContent = `${circuit.name} Grand Prix`;
+    if (simCircuitImage) {
+        simCircuitImage.src = `${CIRCUITS_PATH}/${circuit.asset}`;
+        simCircuitImage.alt = circuit.name;
+    }
+
+    // Placeholder animated dots (will be replaced by real telemetry later)
+    if (simDots) {
+        simDots.innerHTML = '';
+        const teamColors = [
+            '#3671c6', '#3671c6', '#f91536', '#f91536',
+            '#27f4d2', '#27f4d2', '#229971', '#ff8000',
+            '#ff8000', '#0093cc', '#0093cc', '#37bedd',
+            '#37bedd', '#b6babd', '#b6babd', '#5e8faa',
+            '#5e8faa', '#c00000', '#c00000', '#ff8000'
+        ];
+        teamColors.forEach((color, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'sim-dot';
+            dot.style.color = color;
+            dot.style.backgroundColor = color;
+            dot.style.left = `${20 + (i % 5) * 15}%`;
+            dot.style.top = `${20 + Math.floor(i / 5) * 15}%`;
+            dot.style.animationDelay = `${i * 80}ms`;
+            simDots.appendChild(dot);
+        });
+    }
+
+    // Placeholder leaderboard rows
+    if (simLeaderboardList) {
+        simLeaderboardList.innerHTML = '';
+        const placeholder = [
+            { pos: 1, driver: 'VER', team: 'Red Bull Racing', gap: 'LEADER' },
+            { pos: 2, driver: 'PER', team: 'Red Bull Racing', gap: '+1.234' },
+            { pos: 3, driver: 'ALO', team: 'Aston Martin', gap: '+3.456' },
+            { pos: 4, driver: 'HAM', team: 'Mercedes', gap: '+5.678' },
+            { pos: 5, driver: 'RUS', team: 'Mercedes', gap: '+7.890' },
+            { pos: 6, driver: 'SAI', team: 'Ferrari', gap: '+9.012' },
+            { pos: 7, driver: 'LEC', team: 'Ferrari', gap: '+11.234' },
+            { pos: 8, driver: 'NOR', team: 'McLaren', gap: '+13.456' },
+            { pos: 9, driver: 'PIA', team: 'McLaren', gap: '+15.678' },
+            { pos: 10, driver: 'GAS', team: 'Alpine', gap: '+17.890' }
+        ];
+        placeholder.forEach((row, i) => {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'sim-leaderboard-row';
+            rowEl.style.setProperty('--row-index', i);
+            rowEl.innerHTML = `
+                <span class="sim-row-pos">${row.pos}</span>
+                <span class="sim-row-driver">${row.driver}</span>
+                <span class="sim-row-team">${row.team}</span>
+                <span class="sim-row-gap">${row.gap}</span>
+            `;
+            simLeaderboardList.appendChild(rowEl);
+        });
+    }
+}
+
+function setupSimulationControls() {
+    const playBtn = document.getElementById('simPlayBtn');
+    const pauseBtn = document.getElementById('simPauseBtn');
+    const speedOptions = document.getElementById('simSpeedOptions');
+
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            console.log('Simulation play requested (data not yet loaded)');
+            playBtn.classList.add('active');
+            if (pauseBtn) pauseBtn.classList.remove('active');
+        });
+    }
+
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            console.log('Simulation pause requested');
+            pauseBtn.classList.add('active');
+            if (playBtn) playBtn.classList.remove('active');
+        });
+    }
+
+    if (speedOptions) {
+        speedOptions.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('speed-btn')) return;
+            speedOptions.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            simulationSpeed = parseInt(e.target.dataset.speed, 10);
+            console.log('Simulation speed set to:', simulationSpeed, '×');
+        });
+    }
 }
