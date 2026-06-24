@@ -555,7 +555,7 @@ async function loadSimulation() {
         simState.lastOrderSignature = null;
         computeTrackTransform();
         drawTrack();
-        const startFrame = findFirstPopulatedFrame(simulationData);
+        const startFrame = findRaceStartFrame(simulationData);
         simState.currentFrame = startFrame;
         renderFrame(startFrame);
     } catch (error) {
@@ -672,12 +672,56 @@ function buildDots() {
     });
 }
 
-function findFirstPopulatedFrame(data) {
+// Detect the race start frame by skipping the pre-race window (formation lap +
+// grid wait). The strategy: find the longest sustained "stopped" period (where
+// most cars have near-zero inter-frame displacement), then return the first
+// frame after it where most cars are moving again.
+function findRaceStartFrame(data) {
+    const frames = data.frames;
     const n = data.driver_numbers.length;
-    const min = Math.max(1, Math.ceil(n / 2));
-    for (let i = 0; i < data.frames.length; i++) {
-        const valid = data.frames[i].coords.filter(c => c && c[0] !== null).length;
-        if (valid >= min) return i;
+    const minDrivers = Math.max(1, Math.ceil(n * 0.6));
+    // 0.003 ≈ 0.3% of the normalised axis per second; race-speed cars move 0.02+
+    const MOVE = 0.003;
+
+    // Step 1: build a boolean array — true if most drivers are moving that frame
+    const isMoving = new Uint8Array(frames.length);
+    for (let i = 1; i < frames.length; i++) {
+        const prev = frames[i - 1].coords;
+        const curr = frames[i].coords;
+        let m = 0;
+        for (let d = 0; d < n; d++) {
+            const a = prev[d];
+            const b = curr[d];
+            if (!a || !b || a[0] === null || b[0] === null) continue;
+            if (Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]) > MOVE) m++;
+        }
+        isMoving[i] = m >= minDrivers ? 1 : 0;
+    }
+
+    // Step 2: find the longest consecutive "stopped" run
+    let bestStart = 0, bestLen = 0, runStart = 0, runLen = 0;
+    for (let i = 0; i < frames.length; i++) {
+        if (!isMoving[i]) {
+            if (runLen === 0) runStart = i;
+            runLen++;
+            if (runLen > bestLen) { bestLen = runLen; bestStart = runStart; }
+        } else {
+            runLen = 0;
+        }
+    }
+
+    // Step 3: first moving frame after the longest stop block — that's the start
+    if (bestLen > 30) {
+        const afterStop = bestStart + bestLen;
+        for (let i = afterStop; i < frames.length; i++) {
+            if (isMoving[i]) return i;
+        }
+    }
+
+    // Fallback: first frame where most cars have valid coords
+    for (let i = 0; i < frames.length; i++) {
+        const valid = frames[i].coords.filter(c => c && c[0] !== null).length;
+        if (valid >= minDrivers) return i;
     }
     return 0;
 }
