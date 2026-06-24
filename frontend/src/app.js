@@ -451,7 +451,9 @@ let simState = {
     currentFrame: 0,
     lastFrameTime: 0,
     animationFrameId: null,
-    dots: []
+    dots: [],
+    lastOrderSignature: null,
+    trackTransform: null
 };
 const SIMULATION_PATH = '/simulation';
 
@@ -488,6 +490,17 @@ function setupSimulation() {
         }
     });
 
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (!isSimulationOpen || !simulationData) return;
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            computeTrackTransform();
+            drawTrack();
+            renderFrame(simState.currentFrame);
+        }, 150);
+    });
+
     setupSimulationControls();
 }
 
@@ -496,10 +509,13 @@ async function openSimulation() {
     if (!overlay) return;
 
     isSimulationOpen = true;
-    await loadSimulation();
+    // Open first so the track container has real dimensions when we size the
+    // canvas and project telemetry coordinates into it.
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+
+    await loadSimulation();
 
     const closeBtn = document.getElementById('simCloseBtn');
     if (closeBtn) closeBtn.focus();
@@ -522,14 +538,9 @@ async function loadSimulation() {
     const circuit = circuits[currentCircuitIndex];
     const simRound = document.getElementById('simRound');
     const simTitle = document.getElementById('simTitle');
-    const simCircuitImage = document.getElementById('simCircuitImage');
 
     if (simRound) simRound.textContent = circuit.round;
     if (simTitle) simTitle.textContent = `${circuit.name} Grand Prix`;
-    if (simCircuitImage) {
-        simCircuitImage.src = `${CIRCUITS_PATH}/${circuit.asset}`;
-        simCircuitImage.alt = circuit.name;
-    }
 
     const simDots = document.getElementById('simDots');
     if (simDots) simDots.innerHTML = '<div class="sim-loading">Loading telemetry...</div>';
@@ -541,14 +552,104 @@ async function loadSimulation() {
         }
         simulationData = await response.json();
         buildDots();
-        simState.currentFrame = 0;
-        renderFrame(0);
+        simState.lastOrderSignature = null;
+        computeTrackTransform();
+        drawTrack();
+        const startFrame = findFirstPopulatedFrame(simulationData);
+        simState.currentFrame = startFrame;
+        renderFrame(startFrame);
     } catch (error) {
         console.error('Error loading simulation data:', error);
         if (simDots) {
             simDots.innerHTML = '<div class="sim-loading">Simulation data unavailable</div>';
         }
         simulationData = null;
+    }
+}
+
+function driverInitials(name) {
+    if (!name) return '???';
+    const token = name.trim().split(/\s+/).pop();
+    return token.slice(0, 3).toUpperCase();
+}
+
+// Compute an aspect-preserving mapping from the bundle's normalized [0,1]
+// telemetry space into the track container's pixel box. Telemetry was
+// normalized per-axis during ETL, so we rescale using the real coordinate
+// ranges (from bounds) to undo that distortion, then letterbox-center it.
+function computeTrackTransform() {
+    const container = document.getElementById('simDots');
+    if (!container || !simulationData) {
+        simState.trackTransform = null;
+        return;
+    }
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const b = simulationData.bounds;
+    const xrange = b.max_x - b.min_x;
+    const yrange = b.max_y - b.min_y;
+    if (cw <= 0 || ch <= 0 || xrange <= 0 || yrange <= 0) {
+        simState.trackTransform = null;
+        return;
+    }
+
+    const pad = 0.9; // breathing room around the track outline
+    const scale = Math.min(cw / xrange, ch / yrange) * pad;
+    const trackW = xrange * scale;
+    const trackH = yrange * scale;
+
+    simState.trackTransform = {
+        cw,
+        ch,
+        trackW,
+        trackH,
+        offsetX: (cw - trackW) / 2,
+        offsetY: (ch - trackH) / 2,
+        flipY: true // telemetry Y points up; screen Y points down
+    };
+}
+
+// Project a normalized [0,1] coordinate to container-relative percentages.
+function projectNorm(nx, ny) {
+    const t = simState.trackTransform;
+    if (!t) return [nx * 100, ny * 100];
+    const yy = t.flipY ? 1 - ny : ny;
+    const left = ((t.offsetX + nx * t.trackW) / t.cw) * 100;
+    const top = ((t.offsetY + yy * t.trackH) / t.ch) * 100;
+    return [left, top];
+}
+
+// Render the track outline onto the canvas from the telemetry itself, so the
+// live dots are guaranteed to sit on the line for every circuit.
+function drawTrack() {
+    const canvas = document.getElementById('simTrackCanvas');
+    const container = document.getElementById('simDots');
+    if (!canvas || !container || !simulationData) return;
+
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    canvas.width = cw;
+    canvas.height = ch;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, cw, ch);
+    if (!simState.trackTransform) return;
+
+    const frames = simulationData.frames;
+    const stride = Math.max(1, Math.floor(frames.length / 800));
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+
+    for (let f = 0; f < frames.length; f += stride) {
+        const coords = frames[f].coords;
+        for (let i = 0; i < coords.length; i++) {
+            const c = coords[i];
+            if (c && c[0] !== null && c[1] !== null) {
+                const [lx, ty] = projectNorm(c[0], c[1]);
+                ctx.beginPath();
+                ctx.arc((lx / 100) * cw, (ty / 100) * ch, 1.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
     }
 }
 
@@ -564,63 +665,75 @@ function buildDots() {
         const dot = document.createElement('div');
         dot.className = 'sim-dot';
         dot.style.backgroundColor = driver.team_color;
-        dot.style.color = driver.team_color;
+        dot.textContent = driverInitials(driver.name);
         dot.setAttribute('title', `${driver.name} #${num}`);
         simDots.appendChild(dot);
         simState.dots.push(dot);
     });
 }
 
-function renderFrame(frameIndex) {
+function findFirstPopulatedFrame(data) {
+    const n = data.driver_numbers.length;
+    const min = Math.max(1, Math.ceil(n / 2));
+    for (let i = 0; i < data.frames.length; i++) {
+        const valid = data.frames[i].coords.filter(c => c && c[0] !== null).length;
+        if (valid >= min) return i;
+    }
+    return 0;
+}
+
+// Render the simulation at a (possibly fractional) frame index. This function
+// is a pure renderer: it never writes back to simState.currentFrame, so the
+// playback loop keeps full ownership of time accumulation.
+function renderFrame(frameFloat) {
     if (!simulationData) return;
 
     const frames = simulationData.frames;
     if (!frames || frames.length === 0) return;
 
-    frameIndex = Math.max(0, Math.min(frameIndex, frames.length - 1));
-    simState.currentFrame = frameIndex;
+    frameFloat = Math.max(0, Math.min(frameFloat, frames.length - 1));
+    const i0 = Math.floor(frameFloat);
+    const i1 = Math.min(i0 + 1, frames.length - 1);
+    const frac = frameFloat - i0;
 
-    const frame = frames[frameIndex];
+    const frame = frames[i0];
+    const nextFrame = frames[i1];
     const positions = frame.positions;
     const coords = frame.coords;
+    const nextCoords = nextFrame.coords;
 
-    // Update dots
+    // Update dots with linear interpolation between the two bracketing frames
+    // so cars glide along the track instead of snapping once per second.
     simState.dots.forEach((dot, i) => {
-        const coord = coords[i];
-        if (coord && coord[0] !== null && coord[1] !== null) {
-            dot.style.left = `${coord[0] * 100}%`;
-            dot.style.top = `${coord[1] * 100}%`;
+        const a = coords[i];
+        const b = nextCoords[i];
+        const aValid = a && a[0] !== null && a[1] !== null;
+        const bValid = b && b[0] !== null && b[1] !== null;
+
+        let x = null;
+        let y = null;
+        if (aValid && bValid) {
+            x = a[0] + (b[0] - a[0]) * frac;
+            y = a[1] + (b[1] - a[1]) * frac;
+        } else if (aValid) {
+            x = a[0];
+            y = a[1];
+        } else if (bValid) {
+            x = b[0];
+            y = b[1];
+        }
+
+        if (x !== null) {
+            const [left, top] = projectNorm(x, y);
+            dot.style.left = `${left}%`;
+            dot.style.top = `${top}%`;
             dot.style.opacity = '1';
         } else {
             dot.style.opacity = '0';
         }
     });
 
-    // Build leaderboard sorted by position
-    const leaderboardList = document.getElementById('simLeaderboardList');
-    if (leaderboardList) {
-        const indexed = simulationData.driver_numbers.map((num, i) => ({
-            num,
-            position: positions[i] || 99,
-            driver: simulationData.drivers[String(num)]
-        }));
-        indexed.sort((a, b) => a.position - b.position);
-
-        leaderboardList.innerHTML = '';
-        indexed.forEach((entry, i) => {
-            const row = document.createElement('div');
-            row.className = 'sim-leaderboard-row';
-            row.style.setProperty('--row-index', i);
-            const gap = entry.position === 1 ? 'LEADER' : '';
-            row.innerHTML = `
-                <span class="sim-row-pos">${entry.position}</span>
-                <span class="sim-row-driver">${entry.driver.name.split(' ').pop().toUpperCase()}</span>
-                <span class="sim-row-team">${entry.driver.team}</span>
-                <span class="sim-row-gap">${gap}</span>
-            `;
-            leaderboardList.appendChild(row);
-        });
-    }
+    renderLeaderboard(positions);
 
     // Update HUD
     const simTime = document.getElementById('simTime');
@@ -630,7 +743,8 @@ function renderFrame(frameIndex) {
 
     if (simTime) {
         const start = new Date(simulationData.start_time);
-        const current = new Date(start.getTime() + frame.t * 1000);
+        const tSeconds = frame.t + (nextFrame.t - frame.t) * frac;
+        const current = new Date(start.getTime() + tSeconds * 1000);
         simTime.textContent = current.toISOString().substr(11, 8);
     }
 
@@ -639,13 +753,45 @@ function renderFrame(frameIndex) {
         if (leaderIndex >= 0) {
             const leaderNum = simulationData.driver_numbers[leaderIndex];
             const leader = simulationData.drivers[String(leaderNum)];
-            simLeader.textContent = leader.name.split(' ').pop().toUpperCase();
+            simLeader.textContent = driverInitials(leader.name);
         }
     }
 
-    const progress = frames.length > 1 ? frameIndex / (frames.length - 1) : 0;
+    const progress = frames.length > 1 ? frameFloat / (frames.length - 1) : 0;
     if (simProgressTime) simProgressTime.textContent = `${Math.round(progress * 100)}%`;
     if (simProgressFill) simProgressFill.style.width = `${progress * 100}%`;
+}
+
+// Rebuild the running-order panel only when the order actually changes, so the
+// list stays stable instead of being torn down and rebuilt 60 times a second.
+function renderLeaderboard(positions) {
+    const leaderboardList = document.getElementById('simLeaderboardList');
+    if (!leaderboardList) return;
+
+    const indexed = simulationData.driver_numbers.map((num, i) => ({
+        num,
+        position: positions[i] ?? 99,
+        driver: simulationData.drivers[String(num)]
+    }));
+    indexed.sort((a, b) => a.position - b.position);
+
+    const signature = indexed.map(e => e.num).join(',');
+    if (signature === simState.lastOrderSignature) return;
+    simState.lastOrderSignature = signature;
+
+    leaderboardList.innerHTML = '';
+    indexed.forEach((entry) => {
+        const row = document.createElement('div');
+        row.className = 'sim-leaderboard-row';
+        const gap = entry.position === 1 ? 'LEADER' : '';
+        row.innerHTML = `
+            <span class="sim-row-pos">${entry.position === 99 ? '-' : entry.position}</span>
+            <span class="sim-row-driver">${driverInitials(entry.driver.name)}</span>
+            <span class="sim-row-team">${entry.driver.team}</span>
+            <span class="sim-row-gap">${gap}</span>
+        `;
+        leaderboardList.appendChild(row);
+    });
 }
 
 function startPlayback() {
@@ -688,12 +834,12 @@ function tick() {
 
     if (simState.currentFrame >= frames.length - 1) {
         simState.currentFrame = frames.length - 1;
-        renderFrame(Math.floor(simState.currentFrame));
+        renderFrame(simState.currentFrame);
         stopPlayback();
         return;
     }
 
-    renderFrame(Math.floor(simState.currentFrame));
+    renderFrame(simState.currentFrame);
     simState.animationFrameId = requestAnimationFrame(tick);
 }
 
