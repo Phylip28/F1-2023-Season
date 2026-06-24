@@ -373,3 +373,33 @@
   - Tyre data is in the bundle but not yet displayed in the HUD or timing tower (data plumbing ready, UI pending).
   - Lap HUD shows leader's lap; could be extended to show individual driver laps.
 - Next best step: Add tyre compound visualization to the timing tower and car dots (colored borders or icons). Consider adding a separate ETL step for stints to avoid API rate limits.
+
+### Session 008
+
+- Date: 2026-06-24
+- Goal: Make the simulation timing tower larger and fix the HUD current-lap display.
+- Completed:
+  - **Larger timing tower:** Increased `.sim-body` grid column from 260px to 380px for the tower panel.
+  - **Bigger row text/height:** Tower rows increased from 38px to 46px; fonts scaled up (position 0.75rem → 0.9rem, driver code 0.75rem → 0.9rem, team name 0.58rem → 0.7rem, gap 0.7rem → 0.8rem).
+  - **HUD lap counter fix:** The HUD was showing `— / 57` because the browser had cached the pre-regeneration simulation bundle (nginx serves bundles with `max-age=31536000`). Added a cache-busting query parameter to the bundle fetch URL so every simulation open loads the fresh bundle.
+  - **Verified lap progression:** At race start the HUD shows `1 / 57`; after the leader completes lap 1 it updates to `2 / 57`, matching the bundle's per-frame `laps` data.
+  - **Playwright visual verification:** Confirmed the wider tower and working lap counter in a headless browser screenshot.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - `GET /api/season/summary/63` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → total_laps=57, tyres=20 ✓
+  - Playwright: tower width 379px, row height 46px, lap counter `2 / 57` after skipping forward ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Cache-busting with `Date.now()` fetches the full bundle on every simulation open (~1 MB gzipped). Acceptable for now; a build-hash based cache key could reduce redundant downloads later.
+  - Tower panel at 380px reduces the track area width on smaller viewports; responsive breakpoints were added at 1340px/1180px/1020px to gracefully downsize.
+- Next best step: Render tyre compound badges in the timing tower and/or colored rings on the car dots using the `tyres` data already present in the bundle.
