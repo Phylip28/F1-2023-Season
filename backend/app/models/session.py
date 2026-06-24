@@ -30,3 +30,12 @@ class Session(Base):
     weather_readings: Mapped[list["Weather"]] = relationship(
         "Weather", back_populates="session", cascade="all, delete-orphan"
     )
+    locations: Mapped[list["Location"]] = relationship(
+        "Location", back_populates="session", cascade="all, delete-orphan"
+    )
+    race_positions: Mapped[list["RacePosition"]] = relationship(
+        "RacePosition", back_populates="session", cascade="all, delete-orphan"
+    )
+    laps: Mapped[list["Lap"]] = relationship(
+        "Lap", back_populates="session", cascade="all, delete-orphan"
+    )

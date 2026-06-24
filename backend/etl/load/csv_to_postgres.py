@@ -16,6 +16,9 @@ TABLE_LOAD_ORDER = [
     "driver_sessions",
     "session_results",
     "weather",
+    "laps",
+    "locations",
+    "race_positions",
 ]
 
 CSV_TO_TABLE = {
@@ -25,6 +28,9 @@ CSV_TO_TABLE = {
     "driver_sessions": "driver_sessions",
     "results": "session_results",
     "weather": "weather",
+    "laps": "laps",
+    "location": "locations",
+    "position": "race_positions",
 }
 
 

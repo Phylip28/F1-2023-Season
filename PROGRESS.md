@@ -213,3 +213,68 @@
   - Real OpenF1 `location` and `position` data has not been extracted yet.
   - No browser-level automated test was run; visual behavior (entrance animation, modal open/close) was verified by inspecting the built assets.
 - Next best step: Extract and load OpenF1 `location`/`position`/`laps` data, then wire the simulation overlay to real telemetry.
+
+### Session 005
+
+- Date: 2026-06-24
+- Goal: Extract and load OpenF1 telemetry data needed for the race simulation.
+- Completed:
+  - Created new extraction scripts:
+    - `backend/etl/extract/position.py` — race position changes over time.
+    - `backend/etl/extract/location.py` — car (x, y) coordinates; switched to JSONL append-only storage for resumability.
+    - `backend/etl/extract/laps.py` — lap timing and sector data.
+  - Added new SQLAlchemy models:
+    - `RacePosition` → table `race_positions`.
+    - `Location` → table `locations`.
+    - `Lap` → table `laps`.
+  - Updated `app/models/__init__.py` and `app/models/session.py` relationships.
+  - Generated and applied Alembic migration `679e7323b79c_add_location_race_position_and_lap_tables`.
+  - Created transform scripts for `position`, `location`, and `laps` to staging CSV.
+  - Updated `backend/etl/load/csv_to_postgres.py` load order and table mapping.
+  - Updated `backend/etl/run_pipeline.py` to include new extraction and transform steps.
+  - Recovered a corrupted `location_2023.json` extraction by truncating to the last valid JSON record and converting to JSONL.
+  - Extracted 2023 race telemetry:
+    - `race_positions`: 13,224 records.
+    - `laps`: 26,660 records.
+    - `locations`: 17,353,827 records (3.6 GB raw JSONL).
+  - Loaded all records into PostgreSQL.
+  - Added composite indexes for simulation queries:
+    - `ix_locations_session_driver_date`
+    - `ix_race_positions_session_driver_date`
+    - `ix_laps_session_driver_lap`
+  - Added `backend/etl/staging/location_*.csv` to `.gitignore` because the file is ~1.1 GB.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - API test `POST /api/season/classification` → 200 ✓
+  - PostgreSQL counts verified: locations 17.35M, race_positions 13.2k, laps 26.6k ✓
+  - Query plan shows ~19 ms for `locations` lookup by session+driver using composite index ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `.gitignore`
+  - `backend/app/models/__init__.py`
+  - `backend/app/models/session.py`
+  - `backend/app/models/location.py` (new)
+  - `backend/app/models/race_position.py` (new)
+  - `backend/app/models/lap.py` (new)
+  - `backend/alembic/versions/679e7323b79c_add_location_race_position_and_lap_tables.py` (new)
+  - `backend/alembic/versions/2632514c70ef_add_simulation_composite_indexes.py` (new)
+  - `backend/etl/extract/position.py` (new)
+  - `backend/etl/extract/location.py` (new)
+  - `backend/etl/extract/laps.py` (new)
+  - `backend/etl/transform/position.py` (new)
+  - `backend/etl/transform/location.py` (new)
+  - `backend/etl/transform/laps.py` (new)
+  - `backend/etl/load/csv_to_postgres.py`
+  - `backend/etl/run_pipeline.py`
+  - `backend/etl/staging/position_2023.csv` (new, committed)
+  - `backend/etl/staging/laps_2023.csv` (new, committed)
+- Known risk or unresolved issue:
+  - `locations` table is very large (17.35M rows, ~1.1 GB CSV). API endpoints must downsample or stream data to the browser.
+  - Raw `location_2023.jsonl` is 3.6 GB and gitignored; it can be regenerated but extraction takes time.
+  - Simulation overlay still uses placeholder data; backend API endpoint and frontend wiring are the next step.
+- Next best step: Create `/api/season/simulation/{circuit_key}` endpoint and wire the overlay to real telemetry.
