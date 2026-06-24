@@ -5,7 +5,7 @@
 - Repository root: `/home/phylip/Downloads/F1-2023-Season`
 - Standard startup path: `./init.sh` ✓
 - Standard verification path: AGENTS.md Section 3 ✓
-- Current highest-priority unfinished feature: Production / AWS deployment readiness
+- Current highest-priority unfinished feature: Ingest OpenF1 location/position data and wire the race simulation overlay to real telemetry
 - Current blocker: None
 
 ## Session Log
@@ -166,3 +166,50 @@
   - ETL pipeline still runs from host venv; containerizing it is a future enhancement.
   - No automated API tests yet; endpoints were verified manually with curl.
 - Next best step: Add automated tests, containerize ETL, or begin AWS deployment planning.
+
+### Session 004
+
+- Date: 2026-06-23/24
+- Goal: Add UI animations and create the race simulation overlay page.
+- Completed:
+  - **UI Animations:**
+    - Added `livePulse` animation to the header status dot.
+    - Added panel entrance choreography: header drops, sidebar slides from left, center scales up, leaderboard slides from right.
+    - Improved leaderboard row entrance with slide-from-left and staggered delays via `--row-index`.
+    - Added staggered card reveal animation to weather telemetry cards via `--card-index`.
+    - Added hover/active micro-interactions to the new Simulate button and session tabs.
+    - Added `.skeleton` utility class with shimmer animation for future loading states.
+    - Preserved `prefers-reduced-motion` accessibility guard.
+  - **Race Simulation Overlay:**
+    - Added "SIMULATE RACE" button to the app header.
+    - Created a full-screen overlay (`simulation-overlay`) with backdrop blur and scale/fade entrance animation.
+    - Overlay includes:
+      - Header with round badge, circuit name, subtitle, and animated close button.
+      - Main area split into circuit visualization (SVG + animated placeholder dots) and live leaderboard.
+      - HUD showing lap, time, and leader.
+      - Footer controls: play/pause, speed selector (1×/2×/5×/10×), and progress bar.
+    - Implemented `openSimulation()`, `closeSimulation()`, `renderSimulation()`, and keyboard support (Escape to close, Enter/Space to open).
+    - Added placeholder dots with pulsing animation and a placeholder leaderboard to validate the layout.
+    - Updated `updateDashboard()` so the overlay re-renders when the active circuit changes while open.
+- Verification run:
+  - `pnpm install && pnpm run build` — frontend builds successfully ✓
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - API test `POST /api/season/classification` returns 200 ✓
+  - Served HTML contains "SIMULATE RACE" button and `simulation-overlay` markup ✓
+  - Built JS contains `openSimulation`/`closeSimulation`/`renderSimulation` logic ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/index.html`
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Simulation overlay currently uses placeholder dots and a static placeholder leaderboard.
+  - Real OpenF1 `location` and `position` data has not been extracted yet.
+  - No browser-level automated test was run; visual behavior (entrance animation, modal open/close) was verified by inspecting the built assets.
+- Next best step: Extract and load OpenF1 `location`/`position`/`laps` data, then wire the simulation overlay to real telemetry.
