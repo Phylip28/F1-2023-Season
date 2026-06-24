@@ -129,7 +129,26 @@
         <!-- MAIN BODY -->
         <div class="sim-body">
 
-            <!-- LEFT: Control panel -->
+            <!-- LEFT: F1 Timing Tower -->
+            <aside class="sim-tower" aria-label="Live timing tower">
+                <div class="tower-header">
+                    <span class="tower-col-pos">P</span>
+                    <span class="tower-col-driver">DRIVER</span>
+                    <span class="tower-col-gap">GAP</span>
+                    <span class="tower-col-chg"></span>
+                </div>
+                <div class="tower-list" id="simLeaderboardList"></div>
+            </aside>
+
+            <!-- CENTER: Track canvas -->
+            <main class="sim-track-area" aria-label="Circuit simulation">
+                <div class="simulation-track-visual" id="simTrackVisual">
+                    <canvas id="simTrackCanvas"></canvas>
+                    <div class="simulation-dots" id="simDots"></div>
+                </div>
+            </main>
+
+            <!-- RIGHT: Control panel -->
             <aside class="sim-left">
 
                 <!-- Mode picker -->
@@ -166,11 +185,24 @@
                 <div class="sim-playback">
                     <p class="sim-section-label">PLAYBACK</p>
                     <div class="sim-play-row">
-                        <button class="sim-ctrl-btn" id="simPlayBtn" type="button" aria-label="Play">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <button class="sim-ctrl-btn" id="simSkipBackBtn" type="button" aria-label="Rewind 10 seconds">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="11 17 1 12 11 7"/><path d="M1 12h14a6 6 0 0 1 0 12H9"/>
+                            </svg>
                         </button>
-                        <button class="sim-ctrl-btn" id="simPauseBtn" type="button" aria-label="Pause">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        <button class="sim-ctrl-btn sim-play-toggle" id="simPlayToggleBtn" type="button" aria-label="Play / Pause">
+                            <svg class="sim-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <svg class="sim-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        </button>
+                        <button class="sim-ctrl-btn" id="simSkipFwdBtn" type="button" aria-label="Skip 10 seconds">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="13 17 23 12 13 7"/><path d="M23 12H9a6 6 0 0 0 0 12h6"/>
+                            </svg>
+                        </button>
+                        <button class="sim-ctrl-btn sim-restart-btn" id="simRestartBtn" type="button" aria-label="Restart">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                            </svg>
                         </button>
                     </div>
                     <div class="sim-speed-row">
@@ -183,31 +215,12 @@
                         </div>
                     </div>
                     <div class="sim-progress-wrap">
-                        <div class="progress-track">
+                        <div class="progress-track" id="simProgressTrack">
                             <div class="progress-fill" id="simProgressFill"></div>
                         </div>
                         <span class="sim-prog-pct" id="simProgressTime">0%</span>
                     </div>
                 </div>
-            </aside>
-
-            <!-- CENTER: Track canvas -->
-            <main class="sim-track-area" aria-label="Circuit simulation">
-                <div class="simulation-track-visual" id="simTrackVisual">
-                    <canvas id="simTrackCanvas"></canvas>
-                    <div class="simulation-dots" id="simDots"></div>
-                </div>
-            </main>
-
-            <!-- RIGHT: F1 Timing Tower -->
-            <aside class="sim-tower" aria-label="Live timing tower">
-                <div class="tower-header">
-                    <span class="tower-col-pos">P</span>
-                    <span class="tower-col-driver">DRIVER</span>
-                    <span class="tower-col-gap">GAP</span>
-                    <span class="tower-col-chg"></span>
-                </div>
-                <div class="tower-list" id="simLeaderboardList"></div>
             </aside>
 
         </div>

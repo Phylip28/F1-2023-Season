@@ -512,6 +512,8 @@ function setupSimulation() {
             modeFormation.classList.add('sim-mode-active');
             if (modeRaceStart) modeRaceStart.classList.remove('sim-mode-active');
             stopPlayback();
+            const leaderboardList = document.getElementById('simLeaderboardList');
+            if (leaderboardList) leaderboardList.innerHTML = '';
             renderFrame(simState.currentFrame);
             startPlayback();
         });
@@ -528,6 +530,8 @@ function setupSimulation() {
             modeRaceStart.classList.add('sim-mode-active');
             if (modeFormation) modeFormation.classList.remove('sim-mode-active');
             stopPlayback();
+            const leaderboardList = document.getElementById('simLeaderboardList');
+            if (leaderboardList) leaderboardList.innerHTML = '';
             renderFrame(simState.currentFrame);
             startPlayback();
         });
@@ -825,6 +829,7 @@ function renderFrame(frameFloat) {
 
     // Update HUD
     const simTime = document.getElementById('simTime');
+    const simLap = document.getElementById('simLap');
     const simLeader = document.getElementById('simLeader');
     const simProgressTime = document.getElementById('simProgressTime');
     const simProgressFill = document.getElementById('simProgressFill');
@@ -834,6 +839,18 @@ function renderFrame(frameFloat) {
         const tSeconds = frame.t + (nextFrame.t - frame.t) * frac;
         const current = new Date(start.getTime() + tSeconds * 1000);
         simTime.textContent = current.toISOString().substr(11, 8);
+    }
+
+    if (simLap) {
+        const totalLaps = simulationData.total_laps || 57;
+        let leaderLap = 0;
+        if (frame.laps && frame.laps.length > 0) {
+            const leaderIndex = positions.indexOf(1);
+            if (leaderIndex >= 0 && frame.laps[leaderIndex] !== null) {
+                leaderLap = frame.laps[leaderIndex];
+            }
+        }
+        simLap.textContent = leaderLap > 0 ? `${leaderLap} / ${totalLaps}` : `— / ${totalLaps}`;
     }
 
     if (simLeader) {
@@ -851,7 +868,8 @@ function renderFrame(frameFloat) {
 }
 
 // Rebuild the F1 timing tower only when order changes; track position deltas
-// for flash animations and change badges.
+// for flash animations and change badges. Uses FLIP animation so rows glide
+// smoothly to their new positions when a driver overtakes.
 function renderLeaderboard(positions) {
     const leaderboardList = document.getElementById('simLeaderboardList');
     if (!leaderboardList) return;
@@ -883,6 +901,19 @@ function renderLeaderboard(positions) {
     simState.prevPositions = currentMap;
 
     if (signature === simState.lastOrderSignature) return;
+
+    // --- FLIP: record old positions of existing rows ---
+    const oldRows = [...leaderboardList.children];
+    const oldTops = {};
+    const wasPresent = new Set();
+    oldRows.forEach(row => {
+        const dn = parseInt(row.dataset.driverNum);
+        if (!isNaN(dn)) {
+            oldTops[dn] = row.getBoundingClientRect().top;
+            wasPresent.add(dn);
+        }
+    });
+
     simState.lastOrderSignature = signature;
 
     // Expire badges older than 4 s
@@ -892,6 +923,7 @@ function renderLeaderboard(positions) {
         }
     });
 
+    // Rebuild rows
     leaderboardList.innerHTML = '';
     indexed.forEach(entry => {
         const isP1 = entry.position === 1;
@@ -899,8 +931,12 @@ function renderLeaderboard(positions) {
 
         const row = document.createElement('div');
         row.className = `tower-row${isP1 ? ' tower-p1' : ''}`;
-        if (chg && now - chg.ts < 800) {
+        row.dataset.driverNum = entry.num;
+        if (chg && now - chg.ts < 3000) {
             row.classList.add(chg.delta > 0 ? 'gained' : 'lost');
+        }
+        if (!wasPresent.has(entry.num)) {
+            row.classList.add('tower-new');
         }
 
         const stripe = document.createElement('div');
@@ -925,7 +961,7 @@ function renderLeaderboard(positions) {
 
         const chgEl = document.createElement('span');
         chgEl.className = 'tower-col-chg';
-        if (chg && chg.delta !== 0) {
+        if (chg && chg.delta !== 0 && now - chg.ts < 3000) {
             const badge = document.createElement('span');
             badge.className = `tower-chg-badge ${chg.delta > 0 ? 'up' : 'down'}`;
             badge.textContent = chg.delta > 0 ? `▲${chg.delta}` : `▼${Math.abs(chg.delta)}`;
@@ -935,18 +971,29 @@ function renderLeaderboard(positions) {
 
         leaderboardList.appendChild(row);
     });
+
+    // --- FLIP: apply inverse transform then animate to identity ---
+    const newRows = [...leaderboardList.children];
+    newRows.forEach(row => {
+        const dn = parseInt(row.dataset.driverNum);
+        if (isNaN(dn) || oldTops[dn] === undefined) return;
+        const newTop = row.getBoundingClientRect().top;
+        const delta = oldTops[dn] - newTop;
+        if (Math.abs(delta) < 0.5) return;
+        row.style.transition = 'none';
+        row.style.transform = `translateY(${delta}px)`;
+        // Force layout then animate
+        void row.offsetHeight;
+        row.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+        row.style.transform = 'translateY(0)';
+    });
 }
 
 function startPlayback() {
     if (simState.playing || !simulationData) return;
     simState.playing = true;
     simState.lastFrameTime = performance.now();
-
-    const playBtn = document.getElementById('simPlayBtn');
-    const pauseBtn = document.getElementById('simPauseBtn');
-    if (playBtn) playBtn.classList.add('active');
-    if (pauseBtn) pauseBtn.classList.remove('active');
-
+    updatePlayToggleState();
     tick();
 }
 
@@ -956,11 +1003,78 @@ function stopPlayback() {
         cancelAnimationFrame(simState.animationFrameId);
         simState.animationFrameId = null;
     }
+    updatePlayToggleState();
+}
 
-    const playBtn = document.getElementById('simPlayBtn');
-    const pauseBtn = document.getElementById('simPauseBtn');
-    if (playBtn) playBtn.classList.remove('active');
-    if (pauseBtn) pauseBtn.classList.add('active');
+function togglePlayback() {
+    if (!simulationData) {
+        openSimulation();
+        return;
+    }
+    if (simState.playing) {
+        stopPlayback();
+    } else {
+        startPlayback();
+    }
+}
+
+function updatePlayToggleState() {
+    const btn = document.getElementById('simPlayToggleBtn');
+    if (!btn) return;
+    if (simState.playing) {
+        btn.classList.add('playing');
+        btn.setAttribute('aria-label', 'Pause');
+    } else {
+        btn.classList.remove('playing');
+        btn.setAttribute('aria-label', 'Play');
+    }
+}
+
+function restartSimulation() {
+    if (!simulationData) return;
+    stopPlayback();
+    if (simState.mode === 'formation') {
+        simState.currentFrame = 0;
+    } else {
+        simState.currentFrame = simState.raceStartFrameIdx;
+    }
+    simState.prevPositions = null;
+    simState.positionChanges = {};
+    simState.lastOrderSignature = null;
+    // Force leaderboard rebuild
+    const leaderboardList = document.getElementById('simLeaderboardList');
+    if (leaderboardList) leaderboardList.innerHTML = '';
+    renderFrame(simState.currentFrame);
+}
+
+function skipSimulation(seconds) {
+    if (!simulationData) return;
+    const frames = simulationData.frames;
+    if (!frames || frames.length === 0) return;
+    const interval = simulationData.frame_interval || 1;
+    const frameDelta = seconds / interval;
+    const wasPlaying = simState.playing;
+    if (wasPlaying) {
+        // Pause briefly so we don't fight the playback loop
+        simState.playing = false;
+        if (simState.animationFrameId) {
+            cancelAnimationFrame(simState.animationFrameId);
+            simState.animationFrameId = null;
+        }
+    }
+    simState.currentFrame = Math.max(0, Math.min(frames.length - 1, simState.currentFrame + frameDelta));
+    simState.prevPositions = null;
+    simState.positionChanges = {};
+    simState.lastOrderSignature = null;
+    const leaderboardList = document.getElementById('simLeaderboardList');
+    if (leaderboardList) leaderboardList.innerHTML = '';
+    renderFrame(simState.currentFrame);
+    if (wasPlaying) {
+        simState.playing = true;
+        simState.lastFrameTime = performance.now();
+        tick();
+    }
+    updatePlayToggleState();
 }
 
 function tick() {
@@ -987,24 +1101,27 @@ function tick() {
 }
 
 function setupSimulationControls() {
-    const playBtn = document.getElementById('simPlayBtn');
-    const pauseBtn = document.getElementById('simPauseBtn');
+    const playToggleBtn = document.getElementById('simPlayToggleBtn');
+    const skipBackBtn = document.getElementById('simSkipBackBtn');
+    const skipFwdBtn = document.getElementById('simSkipFwdBtn');
+    const restartBtn = document.getElementById('simRestartBtn');
     const speedOptions = document.getElementById('simSpeedOptions');
+    const progressTrack = document.getElementById('simProgressTrack');
 
-    if (playBtn) {
-        playBtn.addEventListener('click', () => {
-            if (!isSimulationOpen) {
-                openSimulation();
-            } else {
-                startPlayback();
-            }
-        });
+    if (playToggleBtn) {
+        playToggleBtn.addEventListener('click', togglePlayback);
     }
 
-    if (pauseBtn) {
-        pauseBtn.addEventListener('click', () => {
-            stopPlayback();
-        });
+    if (skipBackBtn) {
+        skipBackBtn.addEventListener('click', () => skipSimulation(-10));
+    }
+
+    if (skipFwdBtn) {
+        skipFwdBtn.addEventListener('click', () => skipSimulation(10));
+    }
+
+    if (restartBtn) {
+        restartBtn.addEventListener('click', restartSimulation);
     }
 
     if (speedOptions) {
@@ -1013,6 +1130,37 @@ function setupSimulationControls() {
             speedOptions.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
             e.target.classList.add('active');
             simulationSpeed = parseInt(e.target.dataset.speed, 10);
+        });
+    }
+
+    // Click-to-seek on progress bar
+    if (progressTrack) {
+        progressTrack.addEventListener('click', (e) => {
+            if (!simulationData || !simulationData.frames) return;
+            const rect = progressTrack.getBoundingClientRect();
+            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const targetFrame = Math.floor(pct * (simulationData.frames.length - 1));
+            const wasPlaying = simState.playing;
+            if (wasPlaying) {
+                simState.playing = false;
+                if (simState.animationFrameId) {
+                    cancelAnimationFrame(simState.animationFrameId);
+                    simState.animationFrameId = null;
+                }
+            }
+            simState.currentFrame = targetFrame;
+            simState.prevPositions = null;
+            simState.positionChanges = {};
+            simState.lastOrderSignature = null;
+            const leaderboardList = document.getElementById('simLeaderboardList');
+            if (leaderboardList) leaderboardList.innerHTML = '';
+            renderFrame(simState.currentFrame);
+            if (wasPlaying) {
+                simState.playing = true;
+                simState.lastFrameTime = performance.now();
+                tick();
+            }
+            updatePlayToggleState();
         });
     }
 }

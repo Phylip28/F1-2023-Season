@@ -1051,18 +1051,18 @@ body {
 .sim-body {
     flex: 1;
     display: grid;
-    grid-template-columns: 240px 1fr 260px;
+    grid-template-columns: 260px 1fr 240px;
     min-height: 0;
 }
 
-/* ── LEFT PANEL ───────────────────────────────────────────────────────── */
+/* ── RIGHT PANEL (controls) ───────────────────────────────────────────── */
 .sim-left {
     display: flex;
     flex-direction: column;
     padding: 20px 16px;
     gap: 0;
     background: #0e0f15;
-    border-right: 1px solid rgba(255,255,255,0.06);
+    border-left: 1px solid rgba(255,255,255,0.06);
     overflow-y: auto;
 }
 
@@ -1155,12 +1155,13 @@ body {
 
 .sim-play-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .sim-ctrl-btn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: 1px solid rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.04);
@@ -1179,6 +1180,19 @@ body {
     transform: scale(1.06);
 }
 .sim-ctrl-btn:active { transform: scale(0.94); }
+.sim-ctrl-btn:focus-visible { outline: 2px solid var(--f1-red); outline-offset: 2px; }
+
+/* Unified play/pause toggle — swap icons based on state */
+.sim-play-toggle .sim-icon-pause { display: none; }
+.sim-play-toggle .sim-icon-play  { display: inline; }
+.sim-play-toggle.playing .sim-icon-pause { display: inline; }
+.sim-play-toggle.playing .sim-icon-play  { display: none; }
+
+/* Restart button subtle style */
+.sim-restart-btn {
+    border-color: rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+}
 
 .sim-speed-row {
     display: flex;
@@ -1221,6 +1235,11 @@ body {
     background: rgba(255,255,255,0.07);
     border-radius: 3px;
     overflow: hidden;
+    cursor: pointer;
+}
+
+.progress-track:hover {
+    height: 7px;
 }
 
 .progress-fill {
@@ -1300,12 +1319,12 @@ body {
     z-index: 3;
 }
 
-/* ── F1 TIMING TOWER (right) ──────────────────────────────────────────── */
+/* ── F1 TIMING TOWER (left) ───────────────────────────────────────────── */
 .sim-tower {
     display: flex;
     flex-direction: column;
     background: #0d0e14;
-    border-left: 1px solid rgba(255,255,255,0.06);
+    border-right: 1px solid rgba(255,255,255,0.06);
     overflow: hidden;
 }
 
@@ -1338,9 +1357,10 @@ body {
     align-items: center;
     height: 38px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: background 0.3s ease;
+    transition: background 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
+    will-change: transform;
 }
 
 /* P1 highlight */
@@ -1351,19 +1371,31 @@ body {
 
 /* flash animations when position changes */
 .tower-row.gained {
-    animation: towerFlashGreen 0.7s ease forwards;
+    animation: towerFlashGreen 1.2s ease forwards;
 }
 .tower-row.lost {
-    animation: towerFlashRed 0.7s ease forwards;
+    animation: towerFlashRed 1.2s ease forwards;
 }
 
 @keyframes towerFlashGreen {
-    0%   { background: rgba(16, 185, 129, 0.35); }
-    100% { background: transparent; }
+    0%   { background-color: rgba(16, 185, 129, 0.4); }
+    70%  { background-color: rgba(16, 185, 129, 0.15); }
+    100% { background-color: transparent; }
 }
 @keyframes towerFlashRed {
-    0%   { background: rgba(239, 68, 68, 0.3); }
-    100% { background: transparent; }
+    0%   { background-color: rgba(239, 68, 68, 0.35); }
+    70%  { background-color: rgba(239, 68, 68, 0.1); }
+    100% { background-color: transparent; }
+}
+
+/* Smooth slide-in for newly appeared rows */
+.tower-row.tower-new {
+    animation: towerSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes towerSlideIn {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
 /* Team color stripe on the left edge */
@@ -1467,7 +1499,7 @@ body {
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
     .sim-body {
-        grid-template-columns: 200px 1fr 220px;
+        grid-template-columns: 220px 1fr 200px;
     }
 }
 
@@ -1476,7 +1508,7 @@ body {
         grid-template-columns: 1fr;
         grid-template-rows: 1fr auto auto;
     }
-    .sim-left { flex-direction: row; flex-wrap: wrap; padding: 10px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .sim-tower { border-left: none; border-top: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
+    .sim-tower { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); max-height: 200px; }
+    .sim-left { flex-direction: row; flex-wrap: wrap; padding: 10px; border-left: none; border-top: 1px solid rgba(255,255,255,0.06); }
     .sim-tb-sub { display: none; }
 }
