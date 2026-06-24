@@ -993,19 +993,19 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 5px 20px;
-    gap: 1px;
+    padding: 7px 26px;
+    gap: 2px;
 }
 
 .sim-hud-sep {
     width: 1px;
-    height: 28px;
+    height: 34px;
     background: rgba(255,255,255,0.08);
 }
 
 .sim-hud-label {
     font-family: var(--font-mono);
-    font-size: 0.55rem;
+    font-size: 0.6rem;
     font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 1.5px;
@@ -1014,7 +1014,7 @@ body {
 
 .sim-hud-value {
     font-family: var(--font-mono);
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: #fff;
     letter-spacing: 0.5px;
@@ -1051,7 +1051,7 @@ body {
 .sim-body {
     flex: 1;
     display: grid;
-    grid-template-columns: 260px 1fr 240px;
+    grid-template-columns: 380px 1fr 260px;
     min-height: 0;
 }
 
@@ -1330,17 +1330,17 @@ body {
 
 .tower-header {
     display: grid;
-    grid-template-columns: 42px 1fr 60px 28px;
+    grid-template-columns: 52px 1fr 72px 34px;
     align-items: center;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: #11121a;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     font-family: var(--font-mono);
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     font-weight: 700;
     color: #555;
     letter-spacing: 1.5px;
-    flex-shrink: 0;
+    flex: 0 0 auto;
 }
 
 .tower-list {
@@ -1353,14 +1353,15 @@ body {
 /* Tower row */
 .tower-row {
     display: grid;
-    grid-template-columns: 42px 1fr 60px 28px;
+    grid-template-columns: 52px 1fr 72px 34px;
     align-items: center;
-    height: 38px;
+    height: 46px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
     transition: background 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
     will-change: transform;
+    flex: 0 0 auto;
 }
 
 /* P1 highlight */
@@ -1404,17 +1405,17 @@ body {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 3px;
+    width: 4px;
 }
 
 /* Position number */
 .tower-col-pos {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 800;
     color: var(--text-secondary);
     text-align: center;
-    padding-left: 14px;
+    padding-left: 16px;
 }
 .tower-p1 .tower-col-pos { color: var(--f1-red); }
 
@@ -1428,33 +1429,33 @@ body {
 }
 .tower-driver-code {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 800;
     color: #fff;
     letter-spacing: 0.5px;
     line-height: 1;
 }
 .tower-team-name {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
     color: #555;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 .tower-p1 .tower-team-name { color: rgba(255,255,255,0.4); }
 
 /* Gap */
 .tower-col-gap {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-muted);
     text-align: right;
     font-variant-numeric: tabular-nums;
     padding-right: 4px;
 }
-.tower-p1 .tower-col-gap { color: var(--f1-red); font-size: 0.6rem; letter-spacing: 0.5px; }
+.tower-p1 .tower-col-gap { color: var(--f1-red); font-size: 0.7rem; letter-spacing: 0.5px; }
 
 /* Position change indicator */
 .tower-col-chg {
@@ -1497,9 +1498,21 @@ body {
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
+@media (max-width: 1340px) {
     .sim-body {
-        grid-template-columns: 220px 1fr 200px;
+        grid-template-columns: 320px 1fr 240px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .sim-body {
+        grid-template-columns: 280px 1fr 220px;
+    }
+}
+
+@media (max-width: 1020px) {
+    .sim-body {
+        grid-template-columns: 240px 1fr 180px;
     }
 }
 

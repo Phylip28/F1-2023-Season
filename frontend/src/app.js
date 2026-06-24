@@ -582,7 +582,7 @@ async function loadSimulation() {
     if (simDots) simDots.innerHTML = '<div class="sim-loading">Loading telemetry...</div>';
 
     try {
-        const response = await fetch(`${SIMULATION_PATH}/simulation_${circuit.key}_2023.json`);
+        const response = await fetch(`${SIMULATION_PATH}/simulation_${circuit.key}_2023.json?v=${Date.now()}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -850,7 +850,11 @@ function renderFrame(frameFloat) {
                 leaderLap = frame.laps[leaderIndex];
             }
         }
-        simLap.textContent = leaderLap > 0 ? `${leaderLap} / ${totalLaps}` : `— / ${totalLaps}`;
+        // At race start the leader's recorded lap may be null because the
+        // first lap hasn't been crossed yet. Show 1 so the current lap is
+        // always visible.
+        const displayLap = leaderLap > 0 ? leaderLap : 1;
+        simLap.textContent = `${displayLap} / ${totalLaps}`;
     }
 
     if (simLeader) {
