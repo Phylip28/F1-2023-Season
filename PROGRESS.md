@@ -278,3 +278,57 @@
   - Raw `location_2023.jsonl` is 3.6 GB and gitignored; it can be regenerated but extraction takes time.
   - Simulation overlay still uses placeholder data; backend API endpoint and frontend wiring are the next step.
 - Next best step: Create `/api/season/simulation/{circuit_key}` endpoint and wire the overlay to real telemetry.
+
+### Session 006
+
+- Date: 2026-06-24
+- Goal: Replace placeholder simulation with real telemetry using pre-generated static JSON bundles.
+- Completed:
+  - Added `pandas` via `uv add` for efficient telemetry resampling.
+  - Created `backend/etl/db.py` sync DB utility for ETL transforms.
+  - Created `backend/etl/transform/simulation.py`:
+    - Queries `locations`, `race_positions`, `sessions`, `drivers`, `driver_sessions` from PostgreSQL.
+    - Resamples car coordinates to 1-second intervals with linear interpolation.
+    - Forward-fills race positions per driver.
+    - Normalizes coordinates to [0, 1] using track bounds.
+    - Generates one JSON bundle per Grand Prix: `backend/etl/staging/simulation/simulation_{circuit_key}_{year}.json`.
+    - Handles missing data safely (null coords/positions instead of NaN).
+  - Generated 22 simulation bundles for the 2023 season (Imola cancelled excluded).
+  - Updated `backend/etl/run_pipeline.py` to include the simulation transform step.
+  - Added `backend/etl/staging/simulation/` to `.gitignore` (95 MB uncompressed, regenerable).
+  - Updated `docker-compose.yaml` to mount simulation bundles into nginx at `/usr/share/nginx/html/simulation:ro`.
+  - Updated `frontend/nginx.conf`:
+    - Added `gzip_static on;`
+    - Added `/simulation/` location with long-term cache headers.
+  - Rewrote simulation overlay in `frontend/src/app.js`:
+    - Loads bundle on open (`/simulation/simulation_{circuit_key}_2023.json`).
+    - Builds colored dots per driver from bundle metadata.
+    - Renders frames with `requestAnimationFrame` playback.
+    - Updates leaderboard, HUD time, leader, and progress bar each frame.
+    - Play/pause/speed controls wired to real playback state.
+  - Updated `frontend/src/styles.css`:
+    - Made circuit map image fill the visual container.
+    - Added `.sim-loading` style.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `POST /api/season/classification` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → 200, valid JSON, gzip encoded (4.1 MB → 1.08 MB transfer) ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `.gitignore`
+  - `docker-compose.yaml`
+  - `frontend/nginx.conf`
+  - `frontend/src/app.js`
+  - `frontend/src/styles.css`
+  - `backend/etl/run_pipeline.py`
+  - `backend/etl/db.py` (new)
+  - `backend/etl/transform/simulation.py` (new)
+  - `pyproject.toml` / `uv.lock` (pandas dependency)
+- Known risk or unresolved issue:
+  - Dot-to-circuit alignment is approximate because coordinates are normalized independently to [0,1]. A future improvement is to preserve the track's real aspect ratio and match the SVG image bounding box.
+  - The lap counter HUD is still static ("1/57"); it could be wired to `laps` data later.
+  - Progress bar is display-only; click-to-seek is not implemented yet.
+- Next best step: Visually verify the simulation in a browser and refine alignment / add seek bar.

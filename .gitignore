@@ -199,6 +199,7 @@ backend/etl/raw/
 
 # Large telemetry staging files (regenerable from raw data)
 backend/etl/staging/location_*.csv
+backend/etl/staging/simulation/
 
 
 # Cursor

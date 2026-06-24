@@ -111,7 +111,7 @@ function updateDashboard() {
     loadWeather();
     loadDriverClassification();
     if (isSimulationOpen) {
-        renderSimulation();
+        loadSimulation();
     }
 }
 
@@ -445,6 +445,16 @@ function setupSessionTabs() {
    RACE SIMULATION OVERLAY
    ═══════════════════════════════════════════════════════════════════════ */
 
+let simulationData = null;
+let simState = {
+    playing: false,
+    currentFrame: 0,
+    lastFrameTime: 0,
+    animationFrameId: null,
+    dots: []
+};
+const SIMULATION_PATH = '/simulation';
+
 function setupSimulation() {
     const simulateBtn = document.getElementById('simulateBtn');
     const closeBtn = document.getElementById('simCloseBtn');
@@ -481,38 +491,38 @@ function setupSimulation() {
     setupSimulationControls();
 }
 
-function openSimulation() {
+async function openSimulation() {
     const overlay = document.getElementById('simulationOverlay');
     if (!overlay) return;
 
     isSimulationOpen = true;
-    renderSimulation();
+    await loadSimulation();
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
 
     const closeBtn = document.getElementById('simCloseBtn');
     if (closeBtn) closeBtn.focus();
+
+    startPlayback();
 }
 
 function closeSimulation() {
     const overlay = document.getElementById('simulationOverlay');
     if (!overlay) return;
 
+    stopPlayback();
     isSimulationOpen = false;
     overlay.classList.remove('open');
     overlay.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
 }
 
-function renderSimulation() {
+async function loadSimulation() {
     const circuit = circuits[currentCircuitIndex];
-
     const simRound = document.getElementById('simRound');
     const simTitle = document.getElementById('simTitle');
     const simCircuitImage = document.getElementById('simCircuitImage');
-    const simDots = document.getElementById('simDots');
-    const simLeaderboardList = document.getElementById('simLeaderboardList');
 
     if (simRound) simRound.textContent = circuit.round;
     if (simTitle) simTitle.textContent = `${circuit.name} Grand Prix`;
@@ -521,56 +531,170 @@ function renderSimulation() {
         simCircuitImage.alt = circuit.name;
     }
 
-    // Placeholder animated dots (will be replaced by real telemetry later)
-    if (simDots) {
-        simDots.innerHTML = '';
-        const teamColors = [
-            '#3671c6', '#3671c6', '#f91536', '#f91536',
-            '#27f4d2', '#27f4d2', '#229971', '#ff8000',
-            '#ff8000', '#0093cc', '#0093cc', '#37bedd',
-            '#37bedd', '#b6babd', '#b6babd', '#5e8faa',
-            '#5e8faa', '#c00000', '#c00000', '#ff8000'
-        ];
-        teamColors.forEach((color, i) => {
-            const dot = document.createElement('div');
-            dot.className = 'sim-dot';
-            dot.style.color = color;
-            dot.style.backgroundColor = color;
-            dot.style.left = `${20 + (i % 5) * 15}%`;
-            dot.style.top = `${20 + Math.floor(i / 5) * 15}%`;
-            dot.style.animationDelay = `${i * 80}ms`;
-            simDots.appendChild(dot);
+    const simDots = document.getElementById('simDots');
+    if (simDots) simDots.innerHTML = '<div class="sim-loading">Loading telemetry...</div>';
+
+    try {
+        const response = await fetch(`${SIMULATION_PATH}/simulation_${circuit.key}_2023.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        simulationData = await response.json();
+        buildDots();
+        simState.currentFrame = 0;
+        renderFrame(0);
+    } catch (error) {
+        console.error('Error loading simulation data:', error);
+        if (simDots) {
+            simDots.innerHTML = '<div class="sim-loading">Simulation data unavailable</div>';
+        }
+        simulationData = null;
+    }
+}
+
+function buildDots() {
+    const simDots = document.getElementById('simDots');
+    if (!simDots || !simulationData) return;
+
+    simDots.innerHTML = '';
+    simState.dots = [];
+
+    simulationData.driver_numbers.forEach((num) => {
+        const driver = simulationData.drivers[String(num)];
+        const dot = document.createElement('div');
+        dot.className = 'sim-dot';
+        dot.style.backgroundColor = driver.team_color;
+        dot.style.color = driver.team_color;
+        dot.setAttribute('title', `${driver.name} #${num}`);
+        simDots.appendChild(dot);
+        simState.dots.push(dot);
+    });
+}
+
+function renderFrame(frameIndex) {
+    if (!simulationData) return;
+
+    const frames = simulationData.frames;
+    if (!frames || frames.length === 0) return;
+
+    frameIndex = Math.max(0, Math.min(frameIndex, frames.length - 1));
+    simState.currentFrame = frameIndex;
+
+    const frame = frames[frameIndex];
+    const positions = frame.positions;
+    const coords = frame.coords;
+
+    // Update dots
+    simState.dots.forEach((dot, i) => {
+        const coord = coords[i];
+        if (coord && coord[0] !== null && coord[1] !== null) {
+            dot.style.left = `${coord[0] * 100}%`;
+            dot.style.top = `${coord[1] * 100}%`;
+            dot.style.opacity = '1';
+        } else {
+            dot.style.opacity = '0';
+        }
+    });
+
+    // Build leaderboard sorted by position
+    const leaderboardList = document.getElementById('simLeaderboardList');
+    if (leaderboardList) {
+        const indexed = simulationData.driver_numbers.map((num, i) => ({
+            num,
+            position: positions[i] || 99,
+            driver: simulationData.drivers[String(num)]
+        }));
+        indexed.sort((a, b) => a.position - b.position);
+
+        leaderboardList.innerHTML = '';
+        indexed.forEach((entry, i) => {
+            const row = document.createElement('div');
+            row.className = 'sim-leaderboard-row';
+            row.style.setProperty('--row-index', i);
+            const gap = entry.position === 1 ? 'LEADER' : '';
+            row.innerHTML = `
+                <span class="sim-row-pos">${entry.position}</span>
+                <span class="sim-row-driver">${entry.driver.name.split(' ').pop().toUpperCase()}</span>
+                <span class="sim-row-team">${entry.driver.team}</span>
+                <span class="sim-row-gap">${gap}</span>
+            `;
+            leaderboardList.appendChild(row);
         });
     }
 
-    // Placeholder leaderboard rows
-    if (simLeaderboardList) {
-        simLeaderboardList.innerHTML = '';
-        const placeholder = [
-            { pos: 1, driver: 'VER', team: 'Red Bull Racing', gap: 'LEADER' },
-            { pos: 2, driver: 'PER', team: 'Red Bull Racing', gap: '+1.234' },
-            { pos: 3, driver: 'ALO', team: 'Aston Martin', gap: '+3.456' },
-            { pos: 4, driver: 'HAM', team: 'Mercedes', gap: '+5.678' },
-            { pos: 5, driver: 'RUS', team: 'Mercedes', gap: '+7.890' },
-            { pos: 6, driver: 'SAI', team: 'Ferrari', gap: '+9.012' },
-            { pos: 7, driver: 'LEC', team: 'Ferrari', gap: '+11.234' },
-            { pos: 8, driver: 'NOR', team: 'McLaren', gap: '+13.456' },
-            { pos: 9, driver: 'PIA', team: 'McLaren', gap: '+15.678' },
-            { pos: 10, driver: 'GAS', team: 'Alpine', gap: '+17.890' }
-        ];
-        placeholder.forEach((row, i) => {
-            const rowEl = document.createElement('div');
-            rowEl.className = 'sim-leaderboard-row';
-            rowEl.style.setProperty('--row-index', i);
-            rowEl.innerHTML = `
-                <span class="sim-row-pos">${row.pos}</span>
-                <span class="sim-row-driver">${row.driver}</span>
-                <span class="sim-row-team">${row.team}</span>
-                <span class="sim-row-gap">${row.gap}</span>
-            `;
-            simLeaderboardList.appendChild(rowEl);
-        });
+    // Update HUD
+    const simTime = document.getElementById('simTime');
+    const simLeader = document.getElementById('simLeader');
+    const simProgressTime = document.getElementById('simProgressTime');
+    const simProgressFill = document.getElementById('simProgressFill');
+
+    if (simTime) {
+        const start = new Date(simulationData.start_time);
+        const current = new Date(start.getTime() + frame.t * 1000);
+        simTime.textContent = current.toISOString().substr(11, 8);
     }
+
+    if (simLeader) {
+        const leaderIndex = positions.indexOf(1);
+        if (leaderIndex >= 0) {
+            const leaderNum = simulationData.driver_numbers[leaderIndex];
+            const leader = simulationData.drivers[String(leaderNum)];
+            simLeader.textContent = leader.name.split(' ').pop().toUpperCase();
+        }
+    }
+
+    const progress = frames.length > 1 ? frameIndex / (frames.length - 1) : 0;
+    if (simProgressTime) simProgressTime.textContent = `${Math.round(progress * 100)}%`;
+    if (simProgressFill) simProgressFill.style.width = `${progress * 100}%`;
+}
+
+function startPlayback() {
+    if (simState.playing || !simulationData) return;
+    simState.playing = true;
+    simState.lastFrameTime = performance.now();
+
+    const playBtn = document.getElementById('simPlayBtn');
+    const pauseBtn = document.getElementById('simPauseBtn');
+    if (playBtn) playBtn.classList.add('active');
+    if (pauseBtn) pauseBtn.classList.remove('active');
+
+    tick();
+}
+
+function stopPlayback() {
+    simState.playing = false;
+    if (simState.animationFrameId) {
+        cancelAnimationFrame(simState.animationFrameId);
+        simState.animationFrameId = null;
+    }
+
+    const playBtn = document.getElementById('simPlayBtn');
+    const pauseBtn = document.getElementById('simPauseBtn');
+    if (playBtn) playBtn.classList.remove('active');
+    if (pauseBtn) pauseBtn.classList.add('active');
+}
+
+function tick() {
+    if (!simState.playing || !simulationData) return;
+
+    const now = performance.now();
+    const elapsed = (now - simState.lastFrameTime) / 1000;
+    simState.lastFrameTime = now;
+
+    const frames = simulationData.frames;
+    const interval = simulationData.frame_interval;
+    const framesToAdvance = elapsed * simulationSpeed / interval;
+    simState.currentFrame += framesToAdvance;
+
+    if (simState.currentFrame >= frames.length - 1) {
+        simState.currentFrame = frames.length - 1;
+        renderFrame(Math.floor(simState.currentFrame));
+        stopPlayback();
+        return;
+    }
+
+    renderFrame(Math.floor(simState.currentFrame));
+    simState.animationFrameId = requestAnimationFrame(tick);
 }
 
 function setupSimulationControls() {
@@ -580,17 +704,17 @@ function setupSimulationControls() {
 
     if (playBtn) {
         playBtn.addEventListener('click', () => {
-            console.log('Simulation play requested (data not yet loaded)');
-            playBtn.classList.add('active');
-            if (pauseBtn) pauseBtn.classList.remove('active');
+            if (!isSimulationOpen) {
+                openSimulation();
+            } else {
+                startPlayback();
+            }
         });
     }
 
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => {
-            console.log('Simulation pause requested');
-            pauseBtn.classList.add('active');
-            if (playBtn) playBtn.classList.remove('active');
+            stopPlayback();
         });
     }
 
@@ -600,7 +724,6 @@ function setupSimulationControls() {
             speedOptions.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
             e.target.classList.add('active');
             simulationSpeed = parseInt(e.target.dataset.speed, 10);
-            console.log('Simulation speed set to:', simulationSpeed, '×');
         });
     }
 }

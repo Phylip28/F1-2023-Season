@@ -18,6 +18,7 @@ from etl.transform import location as transform_location
 from etl.transform import position as transform_position
 from etl.transform import results as transform_results
 from etl.transform import sessions as transform_sessions
+from etl.transform import simulation as transform_simulation
 from etl.transform import weather as transform_weather
 
 
@@ -50,6 +51,7 @@ def run_transformation(years: list[int]):
         transform_position.transform_position(year)
         transform_laps.transform_laps(year)
         transform_location.transform_location(year)
+        transform_simulation.transform_simulation(year)
 
 
 def run_load(years: list[int]):
