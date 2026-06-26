@@ -17,14 +17,5 @@
 - **No Push:** Execution of `git push` is strictly prohibited.
 - **CI Matrix Dockerfile Paths:** Dockerfile paths are parameterized in the matrix strategy of the CI workflow (`.github/workflows/`). DO NOT move, rename, or delete a service Dockerfile without updating the matching `context` and `dockerfile` entries in the same commit. Duplicate or stale paths will break the image build pipeline.
 
-## 3. Automation & Verification Loops
-Before marking a task as resolved, you must execute this sequence in the terminal:  
-
-### 3.1 Compilation & Image Build
-1. **Backend Build:** `docker build -t f1-backend -f backend/Dockerfile .`.
-2. **Frontend Build:** `docker build -t f1-frontend ./frontend`.
-
-### 3.2 Runtime & Integrity Check
-3. **Runtime Check:** `docker ps` (Containers must be status `Up`).
-4. **Log Audit (Backend):** `docker logs f1-backend`.
-5. **Log Audit (Frontend):** `docker logs f1-frontend`.
+## 3. Automation & Verification
+Setup and integrity checks are automated in `./init.sh`. Run it before starting work.
