@@ -16,6 +16,6 @@
 - **No Hardcoded URLs:** External connection strings or local container communication (backend-frontend) must use environment variables. Do not use `localhost:8000`.
 - **No Push:** Execution of `git push` is strictly prohibited.
 - **CI Matrix Dockerfile Paths:** Dockerfile paths are parameterized in the matrix strategy of the CI workflow (`.github/workflows/`). DO NOT move, rename, or delete a service Dockerfile without updating the matching `context` and `dockerfile` entries in the same commit. Duplicate or stale paths will break the image build pipeline.
+- **No Emojis in Output:** Never use emoji characters in script output, log messages, or commit messages unless explicitly requested by the user. Use plain text indicators instead (e.g., `[OK]`, `[FAIL]`, `[DONE]`).
 
 ## 3. Automation & Verification
-Setup and integrity checks are automated in `./init.sh`. Run it before starting work.

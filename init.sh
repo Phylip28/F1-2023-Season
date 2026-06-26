@@ -24,17 +24,17 @@ docker compose up --build -d
 echo ""
 echo "==> Verifying containers..."
 if docker ps --format '{{.Names}} {{.Status}}' | grep -q 'f1-backend.*Up'; then
-  echo "  ✅ f1-backend is Up"
+  echo "f1-backend is Up"
 else
-  echo "  ❌ f1-backend is not running"
+  echo "f1-backend is not running"
   docker ps
   exit 1
 fi
 
 if docker ps --format '{{.Names}} {{.Status}}' | grep -q 'f1-frontend.*Up'; then
-  echo "  ✅ f1-frontend is Up"
+  echo "f1-frontend is Up"
 else
-  echo "  ❌ f1-frontend is not running"
+  echo "f1-frontend is not running"
   docker ps
   exit 1
 fi
