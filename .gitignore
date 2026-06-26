@@ -197,6 +197,10 @@ cython_debug/
 # ETL raw data (regenerable from OpenF1 API)
 backend/etl/raw/
 
+# Large telemetry staging files (regenerable from raw data)
+backend/etl/staging/location_*.csv
+backend/etl/staging/simulation/
+
 
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
@@ -209,3 +213,7 @@ backend/etl/raw/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Playwright session artifacts
+.playwright-mcp/
+.screenshots/

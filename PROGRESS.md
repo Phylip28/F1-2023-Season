@@ -213,3 +213,193 @@
   - Real OpenF1 `location` and `position` data has not been extracted yet.
   - No browser-level automated test was run; visual behavior (entrance animation, modal open/close) was verified by inspecting the built assets.
 - Next best step: Extract and load OpenF1 `location`/`position`/`laps` data, then wire the simulation overlay to real telemetry.
+
+### Session 005
+
+- Date: 2026-06-24
+- Goal: Extract and load OpenF1 telemetry data needed for the race simulation.
+- Completed:
+  - Created new extraction scripts:
+    - `backend/etl/extract/position.py` — race position changes over time.
+    - `backend/etl/extract/location.py` — car (x, y) coordinates; switched to JSONL append-only storage for resumability.
+    - `backend/etl/extract/laps.py` — lap timing and sector data.
+  - Added new SQLAlchemy models:
+    - `RacePosition` → table `race_positions`.
+    - `Location` → table `locations`.
+    - `Lap` → table `laps`.
+  - Updated `app/models/__init__.py` and `app/models/session.py` relationships.
+  - Generated and applied Alembic migration `679e7323b79c_add_location_race_position_and_lap_tables`.
+  - Created transform scripts for `position`, `location`, and `laps` to staging CSV.
+  - Updated `backend/etl/load/csv_to_postgres.py` load order and table mapping.
+  - Updated `backend/etl/run_pipeline.py` to include new extraction and transform steps.
+  - Recovered a corrupted `location_2023.json` extraction by truncating to the last valid JSON record and converting to JSONL.
+  - Extracted 2023 race telemetry:
+    - `race_positions`: 13,224 records.
+    - `laps`: 26,660 records.
+    - `locations`: 17,353,827 records (3.6 GB raw JSONL).
+  - Loaded all records into PostgreSQL.
+  - Added composite indexes for simulation queries:
+    - `ix_locations_session_driver_date`
+    - `ix_race_positions_session_driver_date`
+    - `ix_laps_session_driver_lap`
+  - Added `backend/etl/staging/location_*.csv` to `.gitignore` because the file is ~1.1 GB.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - API test `POST /api/season/classification` → 200 ✓
+  - PostgreSQL counts verified: locations 17.35M, race_positions 13.2k, laps 26.6k ✓
+  - Query plan shows ~19 ms for `locations` lookup by session+driver using composite index ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `.gitignore`
+  - `backend/app/models/__init__.py`
+  - `backend/app/models/session.py`
+  - `backend/app/models/location.py` (new)
+  - `backend/app/models/race_position.py` (new)
+  - `backend/app/models/lap.py` (new)
+  - `backend/alembic/versions/679e7323b79c_add_location_race_position_and_lap_tables.py` (new)
+  - `backend/alembic/versions/2632514c70ef_add_simulation_composite_indexes.py` (new)
+  - `backend/etl/extract/position.py` (new)
+  - `backend/etl/extract/location.py` (new)
+  - `backend/etl/extract/laps.py` (new)
+  - `backend/etl/transform/position.py` (new)
+  - `backend/etl/transform/location.py` (new)
+  - `backend/etl/transform/laps.py` (new)
+  - `backend/etl/load/csv_to_postgres.py`
+  - `backend/etl/run_pipeline.py`
+  - `backend/etl/staging/position_2023.csv` (new, committed)
+  - `backend/etl/staging/laps_2023.csv` (new, committed)
+- Known risk or unresolved issue:
+  - `locations` table is very large (17.35M rows, ~1.1 GB CSV). API endpoints must downsample or stream data to the browser.
+  - Raw `location_2023.jsonl` is 3.6 GB and gitignored; it can be regenerated but extraction takes time.
+  - Simulation overlay still uses placeholder data; backend API endpoint and frontend wiring are the next step.
+- Next best step: Create `/api/season/simulation/{circuit_key}` endpoint and wire the overlay to real telemetry.
+
+### Session 006
+
+- Date: 2026-06-24
+- Goal: Replace placeholder simulation with real telemetry using pre-generated static JSON bundles.
+- Completed:
+  - Added `pandas` via `uv add` for efficient telemetry resampling.
+  - Created `backend/etl/db.py` sync DB utility for ETL transforms.
+  - Created `backend/etl/transform/simulation.py`:
+    - Queries `locations`, `race_positions`, `sessions`, `drivers`, `driver_sessions` from PostgreSQL.
+    - Resamples car coordinates to 1-second intervals with linear interpolation.
+    - Forward-fills race positions per driver.
+    - Normalizes coordinates to [0, 1] using track bounds.
+    - Generates one JSON bundle per Grand Prix: `backend/etl/staging/simulation/simulation_{circuit_key}_{year}.json`.
+    - Handles missing data safely (null coords/positions instead of NaN).
+  - Generated 22 simulation bundles for the 2023 season (Imola cancelled excluded).
+  - Updated `backend/etl/run_pipeline.py` to include the simulation transform step.
+  - Added `backend/etl/staging/simulation/` to `.gitignore` (95 MB uncompressed, regenerable).
+  - Updated `docker-compose.yaml` to mount simulation bundles into nginx at `/usr/share/nginx/html/simulation:ro`.
+  - Updated `frontend/nginx.conf`:
+    - Added `gzip_static on;`
+    - Added `/simulation/` location with long-term cache headers.
+  - Rewrote simulation overlay in `frontend/src/app.js`:
+    - Loads bundle on open (`/simulation/simulation_{circuit_key}_2023.json`).
+    - Builds colored dots per driver from bundle metadata.
+    - Renders frames with `requestAnimationFrame` playback.
+    - Updates leaderboard, HUD time, leader, and progress bar each frame.
+    - Play/pause/speed controls wired to real playback state.
+  - Updated `frontend/src/styles.css`:
+    - Made circuit map image fill the visual container.
+    - Added `.sim-loading` style.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `POST /api/season/classification` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → 200, valid JSON, gzip encoded (4.1 MB → 1.08 MB transfer) ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `.gitignore`
+  - `docker-compose.yaml`
+  - `frontend/nginx.conf`
+  - `frontend/src/app.js`
+  - `frontend/src/styles.css`
+  - `backend/etl/run_pipeline.py`
+  - `backend/etl/db.py` (new)
+  - `backend/etl/transform/simulation.py` (new)
+  - `pyproject.toml` / `uv.lock` (pandas dependency)
+- Known risk or unresolved issue:
+  - Dot-to-circuit alignment is approximate because coordinates are normalized independently to [0,1]. A future improvement is to preserve the track's real aspect ratio and match the SVG image bounding box.
+  - The lap counter HUD is still static ("1/57"); it could be wired to `laps` data later.
+  - Progress bar is display-only; click-to-seek is not implemented yet.
+- Next best step: Visually verify the simulation in a browser and refine alignment / add seek bar.
+
+### Session 007
+
+- Date: 2026-06-24
+- Goal: Improve simulation overlay UX — swap panels, smooth overtake animations, unified play/pause, skip/restart buttons, lap counter and tyre compound data.
+- Completed:
+  - **Swapped simulation overlay panels:** Timing tower now on the left, controls on the right.
+  - **FLIP animation for overtakes:** When driver positions change, tower rows glide smoothly to their new positions using getBoundingClientRect-based delta transforms. Added CSS will-change and transition support.
+  - **Unified play/pause button:** Merged Play + Pause into a single toggle button that swaps icon (play / pause) based on state.
+  - **Restart button:** Resets playback to race start (or formation lap start) and clears leaderboard state.
+  - **Skip +/-10s buttons:** Jump forward/backward 10 seconds; preserves play/pause state during skip.
+  - **Click-to-seek on progress bar:** Click anywhere on the progress track to jump to that point in the race.
+  - **HUD lap counter:** Simulation bundle now includes per-frame `laps` array and `total_laps` field. HUD shows "LAP X / 57" for the race leader.
+  - **Tyre compound data:** Added `_fetch_stints()` to query OpenF1 `/stints` endpoint per driver. Bundle includes `tyres` map with compound, color, and lap ranges for each driver.
+  - **Backend:** Updated `simulation.py` to query laps from PostgreSQL and stints from OpenF1. Regenerated all 22 simulation bundles (some stints partial due to OpenF1 rate limiting, laps complete for all).
+  - **CSS updates:** Swapped grid-template-columns from `240px 1fr 260px` to `260px 1fr 240px`. Adjusted borders accordingly. Added styles for unified toggle, tower row transitions, tower slide-in animation.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - `POST /api/season/classification` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → 200, total_laps: 57, tyres: 20 drivers, laps data present ✓
+  - Frontend HTML serves new buttons (simPlayToggleBtn, simSkipBackBtn, simSkipFwdBtn, simRestartBtn) ✓
+  - Frontend JS contains minified FLIP animation, HUD lap logic, toggle/restart/skip functions ✓
+  - Stints: 70 records for Bahrain, tyre map with compounds/colors per driver ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/index.html`
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `backend/etl/transform/simulation.py`
+  - `backend/etl/staging/simulation/*.json` (22 bundles regenerated)
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Some stints failed with HTTP 429 (rate limiting) from OpenF1; bundles have partial tyre data.
+  - Tyre data is in the bundle but not yet displayed in the HUD or timing tower (data plumbing ready, UI pending).
+  - Lap HUD shows leader's lap; could be extended to show individual driver laps.
+- Next best step: Add tyre compound visualization to the timing tower and car dots (colored borders or icons). Consider adding a separate ETL step for stints to avoid API rate limits.
+
+### Session 008
+
+- Date: 2026-06-24
+- Goal: Make the simulation timing tower larger and fix the HUD current-lap display.
+- Completed:
+  - **Larger timing tower:** Increased `.sim-body` grid column from 260px to 380px for the tower panel.
+  - **Bigger row text/height:** Tower rows increased from 38px to 46px; fonts scaled up (position 0.75rem → 0.9rem, driver code 0.75rem → 0.9rem, team name 0.58rem → 0.7rem, gap 0.7rem → 0.8rem).
+  - **HUD lap counter fix:** The HUD was showing `— / 57` because the browser had cached the pre-regeneration simulation bundle (nginx serves bundles with `max-age=31536000`). Added a cache-busting query parameter to the bundle fetch URL so every simulation open loads the fresh bundle.
+  - **Verified lap progression:** At race start the HUD shows `1 / 57`; after the leader completes lap 1 it updates to `2 / 57`, matching the bundle's per-frame `laps` data.
+  - **Playwright visual verification:** Confirmed the wider tower and working lap counter in a headless browser screenshot.
+- Verification run:
+  - `docker build -t f1-backend -f backend/Dockerfile .` ✓
+  - `docker build -t f1-frontend ./frontend --build-arg VITE_API_BASE_URL=/api` ✓
+  - `docker compose up -d --force-recreate backend frontend` ✓
+  - `docker ps` — all containers Up/healthy ✓
+  - `docker logs f1-backend` — uvicorn running ✓
+  - `docker logs f1-frontend` — nginx running ✓
+  - `GET /api/season/summary/63` → 200 ✓
+  - `GET /simulation/simulation_63_2023.json` → total_laps=57, tyres=20 ✓
+  - Playwright: tower width 379px, row height 46px, lap counter `2 / 57` after skipping forward ✓
+- Commits: (pending)
+- Files or artifacts updated:
+  - `frontend/src/styles.css`
+  - `frontend/src/app.js`
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Cache-busting with `Date.now()` fetches the full bundle on every simulation open (~1 MB gzipped). Acceptable for now; a build-hash based cache key could reduce redundant downloads later.
+  - Tower panel at 380px reduces the track area width on smaller viewports; responsive breakpoints were added at 1340px/1180px/1020px to gracefully downsize.
+- Next best step: Render tyre compound badges in the timing tower and/or colored rings on the car dots using the `tyres` data already present in the bundle.

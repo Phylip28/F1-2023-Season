@@ -89,77 +89,140 @@
         </div>
     </div>
 
-    <!-- Race Simulation Overlay -->
-    <div class="simulation-overlay" id="simulationOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="simTitle">
-        <div class="simulation-backdrop"></div>
-        <div class="simulation-modal">
-            <header class="simulation-header">
-                <div class="simulation-title-group">
-                    <span class="simulation-round" id="simRound">R01</span>
-                    <h2 class="simulation-title" id="simTitle">Bahrain Grand Prix</h2>
-                    <span class="simulation-subtitle" id="simSubtitle">Race Simulation</span>
+    <!-- Race Simulation — Full Screen -->
+    <div class="sim-fs" id="simulationOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="simTitle">
+
+        <!-- TOP BAR -->
+        <header class="sim-topbar">
+            <div class="sim-topbar-left">
+                <span class="sim-tb-round" id="simRound">R01</span>
+                <h2 class="sim-tb-title" id="simTitle">Bahrain Grand Prix</h2>
+                <span class="sim-tb-sub">RACE SIMULATION</span>
+            </div>
+            <div class="sim-topbar-center">
+                <div class="sim-hud-strip">
+                    <div class="sim-hud-cell">
+                        <span class="sim-hud-label">TIME</span>
+                        <span class="sim-hud-value" id="simTime">15:00:00</span>
+                    </div>
+                    <div class="sim-hud-sep"></div>
+                    <div class="sim-hud-cell">
+                        <span class="sim-hud-label">LAP</span>
+                        <span class="sim-hud-value" id="simLap">— / —</span>
+                    </div>
+                    <div class="sim-hud-sep"></div>
+                    <div class="sim-hud-cell">
+                        <span class="sim-hud-label">LEADER</span>
+                        <span class="sim-hud-value sim-hud-leader" id="simLeader">—</span>
+                    </div>
                 </div>
-                <button class="simulation-close" id="simCloseBtn" type="button" aria-label="Close simulation">✕</button>
-            </header>
+            </div>
+            <div class="sim-topbar-right">
+                <button class="sim-close-btn" id="simCloseBtn" type="button" aria-label="Close simulation">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
 
-            <main class="simulation-body">
-                <section class="simulation-track" aria-label="Circuit simulation">
-                    <div class="simulation-track-visual" id="simTrackVisual">
-                        <img id="simCircuitImage" src="" alt="Circuit map">
-                        <div class="simulation-dots" id="simDots"></div>
-                    </div>
-                    <div class="simulation-hud">
-                        <div class="hud-item">
-                            <span class="hud-label">LAP</span>
-                            <span class="hud-value" id="simLap">1/57</span>
-                        </div>
-                        <div class="hud-item">
-                            <span class="hud-label">TIME</span>
-                            <span class="hud-value" id="simTime">14:01:00</span>
-                        </div>
-                        <div class="hud-item">
-                            <span class="hud-label">LEADER</span>
-                            <span class="hud-value" id="simLeader">VER</span>
-                        </div>
-                    </div>
-                </section>
+        <!-- MAIN BODY -->
+        <div class="sim-body">
 
-                <aside class="simulation-leaderboard" aria-label="Live positions">
-                    <div class="sim-leaderboard-header">
-                        <span>POS</span>
-                        <span>DRIVER</span>
-                        <span>TEAM</span>
-                        <span>GAP</span>
-                    </div>
-                    <div class="sim-leaderboard-list" id="simLeaderboardList">
-                        <!-- Populated by JS -->
-                    </div>
-                </aside>
+            <!-- LEFT: F1 Timing Tower -->
+            <aside class="sim-tower" aria-label="Live timing tower">
+                <div class="tower-header">
+                    <span class="tower-col-pos">P</span>
+                    <span class="tower-col-driver">DRIVER</span>
+                    <span class="tower-col-gap">GAP</span>
+                    <span class="tower-col-chg"></span>
+                </div>
+                <div class="tower-list" id="simLeaderboardList"></div>
+            </aside>
+
+            <!-- CENTER: Track canvas -->
+            <main class="sim-track-area" aria-label="Circuit simulation">
+                <div class="simulation-track-visual" id="simTrackVisual">
+                    <canvas id="simTrackCanvas"></canvas>
+                    <div class="simulation-dots" id="simDots"></div>
+                </div>
             </main>
 
-            <footer class="simulation-controls">
-                <button class="control-btn" id="simPlayBtn" type="button" aria-label="Play simulation">
-                    <span>▶</span>
-                </button>
-                <button class="control-btn" id="simPauseBtn" type="button" aria-label="Pause simulation">
-                    <span>⏸</span>
-                </button>
-                <div class="speed-control">
-                    <span class="speed-label">SPEED</span>
-                    <div class="speed-options" id="simSpeedOptions">
-                        <button class="speed-btn active" data-speed="1" type="button">1×</button>
-                        <button class="speed-btn" data-speed="2" type="button">2×</button>
-                        <button class="speed-btn" data-speed="5" type="button">5×</button>
-                        <button class="speed-btn" data-speed="10" type="button">10×</button>
+            <!-- RIGHT: Control panel -->
+            <aside class="sim-left">
+
+                <!-- Mode picker -->
+                <div class="sim-mode-section">
+                    <p class="sim-section-label">START FROM</p>
+                    <button class="sim-mode-btn" id="simModeFormation" type="button">
+                        <span class="sim-mode-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </span>
+                        <span class="sim-mode-text">
+                            <span class="sim-mode-title">FORMATION LAP</span>
+                            <span class="sim-mode-desc">Full session from pit exit</span>
+                        </span>
+                    </button>
+                    <button class="sim-mode-btn sim-mode-active" id="simModeRaceStart" type="button">
+                        <span class="sim-mode-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                        </span>
+                        <span class="sim-mode-text">
+                            <span class="sim-mode-title">RACE START</span>
+                            <span class="sim-mode-desc">Jump to lights out</span>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Divider -->
+                <div class="sim-left-divider"></div>
+
+                <!-- Playback controls -->
+                <div class="sim-playback">
+                    <p class="sim-section-label">PLAYBACK</p>
+                    <div class="sim-play-row">
+                        <button class="sim-ctrl-btn" id="simSkipBackBtn" type="button" aria-label="Rewind 10 seconds">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="11 17 1 12 11 7"/><path d="M1 12h14a6 6 0 0 1 0 12H9"/>
+                            </svg>
+                        </button>
+                        <button class="sim-ctrl-btn sim-play-toggle" id="simPlayToggleBtn" type="button" aria-label="Play / Pause">
+                            <svg class="sim-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <svg class="sim-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        </button>
+                        <button class="sim-ctrl-btn" id="simSkipFwdBtn" type="button" aria-label="Skip 10 seconds">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="13 17 23 12 13 7"/><path d="M23 12H9a6 6 0 0 0 0 12h6"/>
+                            </svg>
+                        </button>
+                        <button class="sim-ctrl-btn sim-restart-btn" id="simRestartBtn" type="button" aria-label="Restart">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="sim-speed-row">
+                        <span class="sim-section-label">SPEED</span>
+                        <div class="speed-options" id="simSpeedOptions">
+                            <button class="speed-btn active" data-speed="1" type="button">1×</button>
+                            <button class="speed-btn" data-speed="2" type="button">2×</button>
+                            <button class="speed-btn" data-speed="5" type="button">5×</button>
+                            <button class="speed-btn" data-speed="10" type="button">10×</button>
+                        </div>
+                    </div>
+                    <div class="sim-progress-wrap">
+                        <div class="progress-track" id="simProgressTrack">
+                            <div class="progress-fill" id="simProgressFill"></div>
+                        </div>
+                        <span class="sim-prog-pct" id="simProgressTime">0%</span>
                     </div>
                 </div>
-                <div class="progress-control">
-                    <span class="progress-time" id="simProgressTime">0%</span>
-                    <div class="progress-track">
-                        <div class="progress-fill" id="simProgressFill"></div>
-                    </div>
-                </div>
-            </footer>
+            </aside>
+
         </div>
     </div>
 
