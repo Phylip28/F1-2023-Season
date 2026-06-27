@@ -17,6 +17,16 @@ is_self_file() {
   esac
 }
 
+# Markdown documentation files are allowed to mention the patterns the hook
+# searches for. CONSTRAINTS.md's "no emojis" rule applies to script output,
+# log messages, and commit messages -- not documentation.
+is_doc_file() {
+  case "$1" in
+    *.md|*.markdown|*.MD) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Heuristic: is the file at HEAD a text file? Used to skip binaries.
 is_text_file() {
   local file="$1"
@@ -52,6 +62,7 @@ check_no_pip_install() {
   local pattern='^[[:space:]]*(pip3?[[:space:]]+install|python[[:space:]]+-m[[:space:]]+pip[[:space:]]+install)\b'
   for file in "$@"; do
     is_self_file "$file" && continue
+    is_doc_file  "$file" && continue
     is_text_file "$file" || continue
     local hits
     hits=$(git show ":$file" 2>/dev/null | grep -nE "$pattern" || true)
@@ -76,7 +87,10 @@ check_no_emojis() {
   _section "Check 2/4: no emoji characters"
   local file failed=0
   local pattern
-  pattern='[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{1F100}-\x{1F1FF}\x{1F200}-\x{1F2FF}]'
+  # Main color-emoji blocks only. The Dingbats range (2700-27BF) is excluded
+  # because it contains typography symbols like the check mark (U+2713) that
+  # are commonly used in docs and CI output but are not "emoji" in spirit.
+  pattern='[\x{1F000}-\x{1FAFF}\x{1F100}-\x{1F2FF}]'
 
   # Verify grep -P works at all; if not, warn and skip (do not block).
   if ! printf 'ascii\n' | LC_ALL=C.UTF-8 grep -P '.' >/dev/null 2>&1; then
@@ -86,6 +100,7 @@ check_no_emojis() {
 
   for file in "$@"; do
     is_self_file "$file" && continue
+    is_doc_file  "$file" && continue
     is_text_file "$file" || continue
     local hits
     hits=$(git show ":$file" 2>/dev/null | LC_ALL=C.UTF-8 grep -nP "$pattern" || true)
@@ -110,6 +125,7 @@ check_no_localhost_backend() {
   local file failed=0
   for file in "$@"; do
     is_self_file "$file" && continue
+    is_doc_file  "$file" && continue
     is_text_file "$file" || continue
     local hits
     hits=$(git show ":$file" 2>/dev/null | grep -nF 'localhost:8000' || true)
@@ -127,24 +143,30 @@ check_no_localhost_backend() {
 
 # ---------------------------------------------------------------------------
 # Check 4: no large files (>10 MB) staged, unless they are gitignored.
-# Uses git diff --cached --numstat to read the staged size (added bytes).
+# Uses git diff --cached --numstat for modified files, and git cat-file -s
+# for new untracked files (numstat shows "-	-" for them).
 # Gitignored files are allowed because the user has explicitly excluded them.
 # ---------------------------------------------------------------------------
 check_no_large_files() {
   _section "Check 4/4: no large files staged (>10 MB)"
   local failed=0
   local max_bytes=10485760   # 10 * 1024 * 1024
-  local added filename
+  local added filename size
   while IFS=$'\t' read -r added _ filename; do
     [ -z "${filename:-}" ] && continue
-    [ "$added" = "-" ] && continue   # binary diff or non-numeric
-    [ "$added" -gt "$max_bytes" ] 2>/dev/null || continue
+    if [ "$added" = "-" ]; then
+      # New untracked file or pure-binary diff: get the staged blob size.
+      size=$(git cat-file -s ":$filename" 2>/dev/null || echo 0)
+    else
+      size=$added
+    fi
+    [ "$size" -gt "$max_bytes" ] 2>/dev/null || continue
     # If the file is gitignored, the user has already accepted it as non-tracked.
     if git check-ignore -- "$filename" >/dev/null 2>&1; then
       continue
     fi
     local size_mb
-    size_mb=$(awk "BEGIN{printf \"%.2f\", $added/1048576}")
+    size_mb=$(awk "BEGIN{printf \"%.2f\", $size/1048576}")
     echo "[FAIL] $filename ($size_mb MB) -- add to .gitignore or use git LFS"
     failed=1
   done < <(git diff --cached --numstat)

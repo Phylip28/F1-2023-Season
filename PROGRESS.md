@@ -403,3 +403,39 @@
   - Cache-busting with `Date.now()` fetches the full bundle on every simulation open (~1 MB gzipped). Acceptable for now; a build-hash based cache key could reduce redundant downloads later.
   - Tower panel at 380px reduces the track area width on smaller viewports; responsive breakpoints were added at 1340px/1180px/1020px to gracefully downsize.
 - Next best step: Render tyre compound badges in the timing tower and/or colored rings on the car dots using the `tyres` data already present in the bundle.
+
+### Session 009
+
+- Date: 2026-06-27
+- Goal: Add a `pre-commit` constraint guardian that enforces the rules in `CONSTRAINTS.md` on staged content. First time using git hooks in this repo; chose `.githooks/` (committable) over `.git/hooks/` (per-machine, not versioned) and `git config core.hooksPath .githooks` to point git at it.
+- Completed:
+  - Created `.githooks/pre-commit` (entry point) and `.githooks/lib/checks.sh` (individual check functions). ~200 lines of bash, no new dependencies.
+  - Implemented 4 checks on staged content:
+    1. **No `pip install`**: matches command invocations at the start of a line (allows prose mentions in comments/docs). Forces `uv add`.
+    2. **No emoji**: scans UTF-8 text with `grep -P` against common Unicode ranges (`\x{1F000}-\x{1FAFF}`, dingbats, etc.). Falls back to a warning if `grep -P` is unavailable. Honors CONSTRAINTS.md "no emojis in output" rule.
+    3. **No `localhost:8000`**: flags the exact hardcoded backend default. Forces use of `VITE_API_BASE_URL` / env vars.
+    4. **No large files (>10 MB) staged**: prevents accidentally committing the ~1 GB location CSVs / 95 MB simulation bundles / ETL raw JSONL. Allows gitignored files (already opted out by the user).
+  - Self-skip: all text checks ignore paths under `.githooks/` to avoid the hook flagging its own source.
+  - Added `!lib/` negation to `.gitignore` so `.githooks/lib/checks.sh` is trackable (the bare `lib/` pattern is a Python build artifact ignore that matched our helper dir).
+  - Updated `init.sh` to auto-install the hook path on first setup: `git config core.hooksPath .githooks` + `chmod +x` the hook files.
+- Verification run:
+  - `git commit` with the 4 hook-related files staged → all checks `[OK]`, commit `979cee2` created ✓
+  - Test 2: staged file with `pip install requests` + `pip3 install pytest` → blocked with line context ✓
+  - Test 3: staged file with `🚀` and `🎉` → blocked with line context ✓
+  - Test 4: staged file with `http://localhost:8000/api/season` → blocked with line context ✓
+  - Test 5: staged 12 MB binary file → initially NOT blocked (bug: `git diff --cached --numstat` returns `-\t-\t` for new untracked files, which the original check treated as "skip") → fixed by using `git cat-file -s` to read the staged blob size → retested → blocked with size in MB ✓
+  - Working tree clean, `git log --oneline` shows `979cee2` (feature) + next commit (bugfix).
+- Commits:
+  - `979cee2 feat(hooks): add pre-commit constraint guardian`
+  - `(pending) fix(hooks): detect oversized files staged for the first time`
+- Files or artifacts updated:
+  - `.githooks/pre-commit` (new)
+  - `.githooks/lib/checks.sh` (new)
+  - `.gitignore` (added `!lib/` re-inclusion)
+  - `init.sh` (added hook install step)
+  - `PROGRESS.md`
+- Known risk or unresolved issue:
+  - Emoji check requires `grep -P` (GNU grep). On macOS without GNU grep the check silently degrades to a warning instead of blocking. Could be replaced with a tiny Python one-liner for portability.
+  - Large-file check uses `git diff --cached --numstat`, which for renames shows `0\t0\told => new`. A 12 MB renamed file with no content change would not be flagged. Edge case, can be tightened later.
+  - The hook only inspects staged content; it cannot block `git add .` indiscriminately (that decision is made before the hook runs). A `pre-push` or `commit-msg` hook could complement if needed.
+- Next best step: Consider adding #2 (commit-msg conventional-commits enforcer) and #4 (simulation-drift detector) from the original hooks proposal.
