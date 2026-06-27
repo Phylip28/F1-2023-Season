@@ -5,6 +5,10 @@ set -euo pipefail
 
 # --- Setup ---
 
+echo "==> Installing git hooks (pre-commit constraint guardian)..."
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit .githooks/lib/checks.sh
+
 echo "==> Syncing backend dependencies..."
 uv sync
 

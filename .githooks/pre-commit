@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Pre-commit hook: enforce CONSTRAINTS.md rules on staged content.
+#
+# Rules enforced (see CONSTRAINTS.md):
+#   1. No "pip install"        -> use "uv add" (No Pip)
+#   2. No emoji characters     -> plain-text indicators (No Emojis)
+#   3. No "localhost:8000"     -> use VITE_API_BASE_URL / env vars (No Hardcoded URLs)
+#   4. No large files (>10 MB) -> use .gitignore for staging artifacts
+#
+# Exit 0  -> all checks pass, commit proceeds
+# Exit 1  -> one or more checks failed, commit is blocked
+
+set -uo pipefail
+
+# Resolve script directory and load the checks library.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/checks.sh
+source "${SCRIPT_DIR}/lib/checks.sh"
+
+# Collect staged files (added/copied/modified/renamed/type-changed, not deleted).
+mapfile -t STAGED_FILES < <(git diff --cached --name-only --diff-filter=ACMRT 2>/dev/null)
+
+if [ ${#STAGED_FILES[@]} -eq 0 ]; then
+  echo "[OK] no staged files; pre-commit skipped."
+  exit 0
+fi
+
+FAILED=0
+
+check_no_pip_install        "${STAGED_FILES[@]}" || FAILED=1
+check_no_emojis             "${STAGED_FILES[@]}" || FAILED=1
+check_no_localhost_backend  "${STAGED_FILES[@]}" || FAILED=1
+check_no_large_files                            || FAILED=1
+
+echo
+if [ "$FAILED" -ne 0 ]; then
+  echo "[FAIL] pre-commit checks failed. Fix the issues above and retry."
+  echo "       See CONSTRAINTS.md for the rules being enforced."
+  exit 1
+fi
+
+echo "[OK] pre-commit checks passed (${#STAGED_FILES[@]} files)."
+exit 0
